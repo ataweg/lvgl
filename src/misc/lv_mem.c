@@ -23,7 +23,7 @@
  *********************/
 /*Add memory junk on alloc (0xaa) and free(0xbb) (just for testing purposes)*/
 #ifndef LV_MEM_ADD_JUNK
-#  define LV_MEM_ADD_JUNK  0
+#  define LV_MEM_ADD_JUNK  1
 #endif
 
 #ifdef LV_ARCH_64
@@ -421,7 +421,7 @@ LV_ATTRIBUTE_FAST_MEM void lv_memset(void * dst, uint8_t v, size_t len)
         }
     }
 
-    uint32_t v32 = v + (v << 8) + (v << 16) + (v << 24);
+    uint32_t v32 = (uint32_t)v + ((uint32_t)v << 8) + ((uint32_t)v << 16) + ((uint32_t)v << 24);
 
     uint32_t * d32 = (uint32_t *)d8;
 

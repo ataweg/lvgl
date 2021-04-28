@@ -1,5 +1,5 @@
 /**
- * @file lv_ddlist.h
+ * @file lv_dropdown.h
  *
  */
 
@@ -20,7 +20,7 @@ extern "C" {
 /*Testing of dependencies*/
 
 #if LV_USE_LABEL == 0
-#error "lv_ddlist: lv_label is required. Enable it in lv_conf.h (LV_USE_LABEL 1)"
+#error "lv_dropdown: lv_label is required. Enable it in lv_conf.h (LV_USE_LABEL 1)"
 #endif
 
 #include "../widgets/lv_label.h"
@@ -38,7 +38,7 @@ LV_EXPORT_CONST_INT(LV_DROPDOWN_POS_LAST);
 typedef struct {
     lv_obj_t obj;
     lv_obj_t * list;                /**< The dropped down list*/
-    const char * text;              /**< Text to display on the ddlist's button*/
+    const char * text;              /**< Text to display on the dropdown's button*/
     const void * symbol;            /**< Arrow or other icon when the drop-down list is closed*/
     char * options;                 /**< Options in a a '\n' separated list*/
     lv_coord_t max_height;          /**< Maximal height of the list when opened. (0: no max.  height)*/
@@ -57,7 +57,7 @@ typedef struct {
 }lv_dropdown_list_t;
 
 extern const  lv_obj_class_t lv_dropdown_class;
-extern const  lv_obj_class_t lv_dropdown_list_class;
+extern const  lv_obj_class_t lv_dropdownlist_class;
 
 /**********************
  * GLOBAL PROTOTYPES
@@ -66,11 +66,9 @@ extern const  lv_obj_class_t lv_dropdown_list_class;
 /**
  * Create a drop-down list objects
  * @param parent pointer to an object, it will be the parent of the new drop-down list
- * @param copy DEPRECATED, will be removed in v9.
- *             Pointer to an other drop-down list to copy.
  * @return pointer to the created drop-down list
  */
-lv_obj_t * lv_dropdown_create(lv_obj_t * parent, const lv_obj_t * copy);
+lv_obj_t * lv_dropdown_create(lv_obj_t * parent);
 
 /*=====================
  * Setter functions

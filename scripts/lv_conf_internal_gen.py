@@ -27,11 +27,12 @@ fout.write(
 
 #include <stdint.h>
 
-/*Handle special Kconfig options*/
-#include "lv_conf_kconfig.h"
-
-#ifdef CONFIG_LV_CONF_SKIP
-#define LV_CONF_SKIP
+/* Handle special Kconfig options */
+#ifndef LV_KCONFIG_IGNORE
+#   include "lv_conf_kconfig.h"
+#   ifdef CONFIG_LV_CONF_SKIP
+#       define LV_CONF_SKIP
+#   endif
 #endif
 
 /*If "lv_conf.h" is available from here try to use it later.*/
@@ -58,6 +59,10 @@ fout.write(
 #  endif
 #endif
 
+
+/*----------------------------------
+ * Start parsing lv_conf_template.h
+ -----------------------------------*/
 '''
 )
 
@@ -105,13 +110,14 @@ for i in fin.read().splitlines():
 fout.write(
 '''
 
+/*----------------------------------
+ * End of parsing lv_conf_template.h
+ -----------------------------------*/
+
+LV_EXPORT_CONST_INT(LV_DPI_DEF);
+
 /*If running without lv_conf.h add typdesf with default value*/
 #if defined(LV_CONF_SKIP)
-
-
-# if LV_USE_USER_DATA
-  typedef void * lv_obj_user_data_t;
-# endif
 
 # if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)    /*Disable warnings for Visual Studio*/
 #  define _CRT_SECURE_NO_WARNINGS
