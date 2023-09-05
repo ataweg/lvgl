@@ -25,6 +25,9 @@ extern "C" {
  *      DEFINES
  *********************/
 
+/* imgfont identifier */
+#define LV_IMGFONT_BPP 9
+
 /**********************
  *      TYPEDEFS
  **********************/
@@ -33,33 +36,41 @@ extern "C" {
  * General types
  *-----------------*/
 
+struct _lv_font_t;
 /** Describes the properties of a glyph.*/
 typedef struct {
+    const struct _lv_font_t *
+        resolved_font; /**< Pointer to a font where the glyph was actually found after handling fallbacks*/
     uint16_t adv_w; /**< The glyph needs this space. Draw the next glyph after this width.*/
-    uint16_t box_w;  /**< Width of the glyph's bounding box*/
-    uint16_t box_h;  /**< Height of the glyph's bounding box*/
-    int16_t ofs_x;   /**< x offset of the bounding box*/
+    uint16_t box_w; /**< Width of the glyph's bounding box*/
+    uint16_t box_h; /**< Height of the glyph's bounding box*/
+    int16_t ofs_x;  /**< x offset of the bounding box*/
     int16_t ofs_y;  /**< y offset of the bounding box*/
-    uint8_t bpp;   /**< Bit-per-pixel: 1, 2, 4, 8*/
+    uint8_t bpp: 4;  /**< Bit-per-pixel: 1, 2, 4, 8*/
+    uint8_t is_placeholder: 1; /** Glyph is missing. But placeholder will still be displayed */
 } lv_font_glyph_dsc_t;
 
 /** The bitmaps might be upscaled by 3 to achieve subpixel rendering.*/
-enum {
+enum _lv_font_subpx_t {
     LV_FONT_SUBPX_NONE,
     LV_FONT_SUBPX_HOR,
     LV_FONT_SUBPX_VER,
     LV_FONT_SUBPX_BOTH,
 };
 
+#ifdef DOXYGEN
+typedef _lv_font_subpx_t lv_font_subpx_t;
+#else
 typedef uint8_t lv_font_subpx_t;
+#endif /*DOXYGEN*/
 
 /** Describe the properties of a font*/
-typedef struct _lv_font_struct {
+typedef struct _lv_font_t {
     /** Get a glyph's descriptor from a font*/
-    bool (*get_glyph_dsc)(const struct _lv_font_struct *, lv_font_glyph_dsc_t *, uint32_t letter, uint32_t letter_next);
+    bool (*get_glyph_dsc)(const struct _lv_font_t *, lv_font_glyph_dsc_t *, uint32_t letter, uint32_t letter_next);
 
     /** Get a glyph's bitmap from a font*/
-    const uint8_t * (*get_glyph_bitmap)(const struct _lv_font_struct *, uint32_t);
+    const uint8_t * (*get_glyph_bitmap)(const struct _lv_font_t *, uint32_t, uint8_t *);
 
     /*Pointer to the font in a font pack (must have the same line height)*/
     lv_coord_t line_height;         /**< The real line height where any text fits*/
@@ -69,11 +80,9 @@ typedef struct _lv_font_struct {
     int8_t underline_position;      /**< Distance between the top of the underline and base line (< 0 means below the base line)*/
     int8_t underline_thickness;     /**< Thickness of the underline*/
 
-    const void * dsc;                     /**< Store implementation specific or run_time data or caching here*/
-#if LV_USE_USER_DATA
+    const void * dsc;               /**< Store implementation specific or run_time data or caching here*/
+    const struct _lv_font_t * fallback;   /**< Fallback font for missing glyph. Resolved recursively */
     void * user_data;               /**< Custom user data for font.*/
-#endif
-
 } lv_font_t;
 
 /**********************
@@ -82,40 +91,41 @@ typedef struct _lv_font_struct {
 
 /**
  * Return with the bitmap of a font.
- * @param font_p pointer to a font
- * @param letter an UNICODE character code
+ * @param font_p        pointer to a font
+ * @param letter        a UNICODE character code
  * @return pointer to the bitmap of the letter
  */
-const uint8_t * lv_font_get_glyph_bitmap(const lv_font_t * font_p, uint32_t letter);
+const uint8_t * lv_font_get_glyph_bitmap(const lv_font_t * font, uint32_t letter, uint8_t * buf_out);
 
 /**
  * Get the descriptor of a glyph
- * @param font_p pointer to font
- * @param dsc_out store the result descriptor here
- * @param letter an UNICODE letter code
+ * @param font          pointer to font
+ * @param dsc_out       store the result descriptor here
+ * @param letter        a UNICODE letter code
+ * @param letter_next   the next letter after `letter`. Used for kerning
  * @return true: descriptor is successfully loaded into `dsc_out`.
  *         false: the letter was not found, no data is loaded to `dsc_out`
  */
-bool lv_font_get_glyph_dsc(const lv_font_t * font_p, lv_font_glyph_dsc_t * dsc_out, uint32_t letter,
+bool lv_font_get_glyph_dsc(const lv_font_t * font, lv_font_glyph_dsc_t * dsc_out, uint32_t letter,
                            uint32_t letter_next);
 
 /**
  * Get the width of a glyph with kerning
- * @param font pointer to a font
- * @param letter an UNICODE letter
- * @param letter_next the next letter after `letter`. Used for kerning
+ * @param font          pointer to a font
+ * @param letter        a UNICODE letter
+ * @param letter_next   the next letter after `letter`. Used for kerning
  * @return the width of the glyph
  */
 uint16_t lv_font_get_glyph_width(const lv_font_t * font, uint32_t letter, uint32_t letter_next);
 
 /**
  * Get the line height of a font. All characters fit into this height
- * @param font_p pointer to a font
+ * @param font      pointer to a font
  * @return the height of a font
  */
-static inline lv_coord_t lv_font_get_line_height(const lv_font_t * font_p)
+static inline lv_coord_t lv_font_get_line_height(const lv_font_t * font)
 {
-    return font_p->line_height;
+    return font->line_height;
 }
 
 /**********************
@@ -212,8 +222,12 @@ LV_FONT_DECLARE(lv_font_montserrat_48)
 LV_FONT_DECLARE(lv_font_montserrat_28_compressed)
 #endif
 
-#if LV_FONT_MONTSERRAT_12_SUBPX
-LV_FONT_DECLARE(lv_font_montserrat_12_subpx)
+#if LV_FONT_DEJAVU_16_PERSIAN_HEBREW
+LV_FONT_DECLARE(lv_font_dejavu_16_persian_hebrew)
+#endif
+
+#if LV_FONT_SIMSUN_16_CJK
+LV_FONT_DECLARE(lv_font_simsun_16_cjk)
 #endif
 
 #if LV_FONT_UNSCII_8
@@ -224,18 +238,19 @@ LV_FONT_DECLARE(lv_font_unscii_8)
 LV_FONT_DECLARE(lv_font_unscii_16)
 #endif
 
-#if LV_FONT_DEJAVU_16_PERSIAN_HEBREW
-LV_FONT_DECLARE(lv_font_dejavu_16_persian_hebrew)
-#endif
-
-#if LV_FONT_SIMSUN_16_CJK
-LV_FONT_DECLARE(lv_font_simsun_16_cjk)
-#endif
-
 /*Declare the custom (user defined) fonts*/
 #ifdef LV_FONT_CUSTOM_DECLARE
 LV_FONT_CUSTOM_DECLARE
 #endif
+
+/**
+ * Just a wrapper around LV_FONT_DEFAULT because it might be more convenient to use a function in some cases
+ * @return  pointer to LV_FONT_DEFAULT
+ */
+static inline const lv_font_t * lv_font_default(void)
+{
+    return LV_FONT_DEFAULT;
+}
 
 #ifdef __cplusplus
 } /*extern "C"*/

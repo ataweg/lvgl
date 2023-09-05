@@ -1,13 +1,14 @@
-C
-^
 
-Simple table 
-"""""""""""""""""""""""
 
-.. lv_example:: lv_ex_widgets/lv_ex_table/lv_ex_table_1
+Simple table
+------------
+
+.. lv_example:: widgets/table/lv_example_table_1
   :language: c
 
-MicroPython
-^^^^^^^^^^^
+Lightweighted list from table
+-----------------------------
 
-No examples yet.
+.. lv_example:: widgets/table/lv_example_table_2
+  :language: c
+

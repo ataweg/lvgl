@@ -10,7 +10,7 @@
 #include "lv_bidi.h"
 #include "lv_txt.h"
 #include "lv_txt_ap.h"
-#include "lv_mem.h"
+#include "../stdlib/lv_mem.h"
 #include "../draw/lv_draw.h"
 
 /*********************
@@ -20,6 +20,17 @@
 /**********************
  *      TYPEDEFS
  **********************/
+typedef struct {
+    uint8_t char_offset;
+    uint16_t char_end_form;
+    int8_t char_begining_form_offset;
+    int8_t char_middle_form_offset;
+    int8_t char_isolated_form_offset;
+    struct {
+        uint8_t conj_to_previous;
+        uint8_t conj_to_next;
+    } ap_chars_conjunction;
+} ap_chars_map_t;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -27,6 +38,7 @@
 #if LV_USE_ARABIC_PERSIAN_CHARS == 1
 static uint32_t lv_ap_get_char_index(uint16_t c);
 static uint32_t lv_txt_lam_alef(uint32_t ch_curr, uint32_t ch_next);
+static bool lv_txt_is_arabic_vowel(uint16_t c);
 
 /**********************
  *  STATIC VARIABLES
@@ -138,8 +150,8 @@ void _lv_txt_ap_proc(const char * txt, char * txt_out)
 
     txt_length = _lv_txt_get_encoded_length(txt);
 
-    ch_enc = (uint32_t *)lv_mem_alloc(sizeof(uint32_t) * (txt_length + 1));
-    ch_fin = (uint32_t *)lv_mem_alloc(sizeof(uint32_t) * (txt_length + 1));
+    ch_enc = (uint32_t *)lv_malloc(sizeof(uint32_t) * (txt_length + 1));
+    ch_fin = (uint32_t *)lv_malloc(sizeof(uint32_t) * (txt_length + 1));
 
     i = 0;
     j = 0;
@@ -154,6 +166,16 @@ void _lv_txt_ap_proc(const char * txt, char * txt_out)
     while(i < txt_length) {
         index_current = lv_ap_get_char_index(ch_enc[i]);
         idx_next = lv_ap_get_char_index(ch_enc[i + 1]);
+
+        if(lv_txt_is_arabic_vowel(ch_enc[i])) {  // Current character is a vowel
+            ch_fin[j] = ch_enc[i];
+            i++;
+            j++;
+            continue;   // Skip this character
+        }
+        else if(lv_txt_is_arabic_vowel(ch_enc[i + 1])) {    // Next character is a vowel
+            idx_next = lv_ap_get_char_index(ch_enc[i + 2]); // Skip the vowel character to join with the character after it
+        }
 
         if(index_current == LV_UNDEF_ARABIC_PERSIAN_CHARS) {
             ch_fin[j] = ch_enc[i];
@@ -197,7 +219,7 @@ void _lv_txt_ap_proc(const char * txt, char * txt_out)
         ch_enc[i] = 0;
     for(i = 0; i < j; i++)
         ch_enc[i] = ch_fin[i];
-    lv_mem_free(ch_fin);
+    lv_free(ch_fin);
 
     txt_out_temp = txt_out;
     i = 0;
@@ -225,7 +247,7 @@ void _lv_txt_ap_proc(const char * txt, char * txt_out)
         i++;
     }
     *(txt_out_temp) = '\0';
-    lv_mem_free(ch_enc);
+    lv_free(ch_enc);
 }
 /**********************
 *   STATIC FUNCTIONS
@@ -269,6 +291,11 @@ static uint32_t lv_txt_lam_alef(uint32_t ch_curr, uint32_t ch_next)
         return 0xFEFB;    // (lam-alef) alef
     }
     return 0;
+}
+
+static bool lv_txt_is_arabic_vowel(uint16_t c)
+{
+    return (c >= 0x064B) && (c <= 0x0652);
 }
 
 #endif

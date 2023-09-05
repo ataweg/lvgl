@@ -1,20 +1,20 @@
-C
-^
+
+Simple Slider
+-------------
+
+.. lv_example:: widgets/slider/lv_example_slider_1
+  :language: c
 
 Slider with custom style
-"""""""""""""""""""""""""
+------------------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_slider/lv_ex_slider_1
+.. lv_example:: widgets/slider/lv_example_slider_2
   :language: c
 
-Set value with slider 
-"""""""""""""""""""""""
+Slider with extended drawer
+---------------------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_slider/lv_ex_slider_2
+.. lv_example:: widgets/slider/lv_example_slider_3
   :language: c
 
 
-MicroPython
-^^^^^^^^^^^
-
-No examples yet.

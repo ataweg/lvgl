@@ -11,10 +11,10 @@ void lv_example_grid_3(void)
      *Column 3: 2 unit from the remaining free space*/
     static lv_coord_t col_dsc[] = {60, LV_GRID_FR(1), LV_GRID_FR(2), LV_GRID_TEMPLATE_LAST};
 
-    /*Row 1: fix width 60 px
+    /*Row 1: fix width 50 px
      *Row 2: 1 unit from the remaining free space
-     *Row 3: fix width 60 px*/
-    static lv_coord_t row_dsc[] = {40, LV_GRID_FR(1), 40, LV_GRID_TEMPLATE_LAST};
+     *Row 3: fix width 50 px*/
+    static lv_coord_t row_dsc[] = {50, LV_GRID_FR(1), 50, LV_GRID_TEMPLATE_LAST};
 
     /*Create a container with grid*/
     lv_obj_t * cont = lv_obj_create(lv_scr_act());
@@ -33,7 +33,7 @@ void lv_example_grid_3(void)
         /*Stretch the cell horizontally and vertically too
          *Set span to 1 to make the cell 1 column/row sized*/
         lv_obj_set_grid_cell(obj, LV_GRID_ALIGN_STRETCH, col, 1,
-                                 LV_GRID_ALIGN_STRETCH, row, 1);
+                             LV_GRID_ALIGN_STRETCH, row, 1);
 
         label = lv_label_create(obj);
         lv_label_set_text_fmt(label, "%d,%d", col, row);

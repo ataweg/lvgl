@@ -13,9 +13,10 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
+#include "lv_draw.h"
 #include "lv_img_decoder.h"
 #include "lv_img_buf.h"
-#include "lv_draw_blend.h"
+#include "../misc/lv_style.h"
 
 /*********************
  *      DEFINES
@@ -30,33 +31,53 @@ extern "C" {
  **********************/
 
 typedef struct {
-    lv_opa_t opa;
+    lv_color_t alpha_color;
+    const lv_color32_t * palette;
+    uint32_t palette_size   : 9;
+} lv_draw_img_sup_t;
 
-    uint16_t angle;
+typedef struct _lv_draw_img_dsc_t {
+    lv_draw_dsc_base_t base;
+
+    const void * src;
+    lv_img_header_t header;
+
+
+    lv_coord_t angle;
+    lv_coord_t zoom;
     lv_point_t pivot;
-    uint16_t zoom;
 
-    lv_opa_t recolor_opa;
+    lv_color_t chroma_key_color;
     lv_color_t recolor;
+    lv_opa_t recolor_opa;
 
-    lv_blend_mode_t blend_mode;
+    lv_opa_t opa;
+    lv_blend_mode_t blend_mode : 4;
 
-    uint8_t antialias       : 1;
+    int32_t frame_id;
+    uint16_t antialias      : 1;
+    lv_draw_img_sup_t * sup;
 } lv_draw_img_dsc_t;
+
+struct _lv_layer_t;
 
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
 
 void lv_draw_img_dsc_init(lv_draw_img_dsc_t * dsc);
+
 /**
  * Draw an image
- * @param coords the coordinates of the image
- * @param mask the image will be drawn only in this area
- * @param src pointer to a lv_color_t array which contains the pixels of the image
- * @param dsc pointer to an initialized `lv_draw_img_dsc_t` variable
+ * @param draw_ctx      pointer to the current draw context
+ * @param dsc           pointer to an initialized `lv_draw_img_dsc_t` variable
+ * @param coords        the coordinates of the image
+ * @param src           pointer to a lv_color_t array which contains the pixels of the image
  */
-void lv_draw_img(const lv_area_t * coords, const lv_area_t * mask, const void * src, const lv_draw_img_dsc_t * dsc);
+void lv_draw_img(struct _lv_layer_t * layer, const lv_draw_img_dsc_t * dsc, const lv_area_t * coords);
+
+
+void lv_draw_layer(struct _lv_layer_t * layer, const lv_draw_img_dsc_t * dsc, const lv_area_t * coords);
 
 /**
  * Get the type of an image source
@@ -67,27 +88,6 @@ void lv_draw_img(const lv_area_t * coords, const lv_area_t * mask, const void * 
  * @return type of the image source LV_IMG_SRC_VARIABLE/FILE/SYMBOL/UNKNOWN
  */
 lv_img_src_t lv_img_src_get_type(const void * src);
-
-/**
- * Get the pixel size of a color format in bits
- * @param cf a color format (`LV_IMG_CF_...`)
- * @return the pixel size in bits
- */
-uint8_t lv_img_cf_get_px_size(lv_img_cf_t cf);
-
-/**
- * Check if a color format is chroma keyed or not
- * @param cf a color format (`LV_IMG_CF_...`)
- * @return true: chroma keyed; false: not chroma keyed
- */
-bool lv_img_cf_is_chroma_keyed(lv_img_cf_t cf);
-
-/**
- * Check if a color format has alpha channel or not
- * @param cf a color format (`LV_IMG_CF_...`)
- * @return true: has alpha channel; false: doesn't have alpha channel
- */
-bool lv_img_cf_has_alpha(lv_img_cf_t cf);
 
 #ifdef __cplusplus
 } /*extern "C"*/

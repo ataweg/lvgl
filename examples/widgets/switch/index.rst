@@ -1,13 +1,7 @@
-C
-^
 
-Simple Switch 
-"""""""""""""""""""""""
+Simple Switch
+-------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_switch/lv_ex_switch_1
+.. lv_example:: widgets/switch/lv_example_switch_1
   :language: c
 
-MicroPython
-^^^^^^^^^^^
-
-No examples yet.

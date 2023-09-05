@@ -1,12 +1,12 @@
-C
-^
 
-Simple Checkbox
-""""""""""""""""
-.. lv_example:: lv_ex_widgets/lv_ex_checkbox/lv_ex_checkbox_1
+Simple Checkboxes
+-----------------
+
+.. lv_example:: widgets/checkbox/lv_example_checkbox_1
   :language: c
 
-MicroPython
-^^^^^^^^^^^
+Checkboxes as radio buttons
+---------------------------
+.. lv_example:: widgets/checkbox/lv_example_checkbox_2
+  :language: c
 
-No examples yet.

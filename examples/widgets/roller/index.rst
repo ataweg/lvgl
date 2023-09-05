@@ -1,13 +1,19 @@
-C
-^
 
-Simple Roller 
-""""""""""""""""
+Simple Roller
+-------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_roller/lv_ex_roller_1
+.. lv_example:: widgets/roller/lv_example_roller_1
   :language: c
 
-MicroPython
-^^^^^^^^^^^
+Styling the roller
+------------------
 
-No examples yet.
+.. lv_example:: widgets/roller/lv_example_roller_2
+  :language: c
+
+add fade mask to roller
+-----------------------
+
+.. lv_example:: widgets/roller/lv_example_roller_3
+  :language: c
+

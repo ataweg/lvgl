@@ -22,7 +22,6 @@ extern "C" {
 #include "../misc/lv_area.h"
 #include "../misc/lv_color.h"
 #include "../misc/lv_assert.h"
-#include "../hal/lv_hal.h"
 
 /*********************
  *      DEFINES
@@ -38,7 +37,7 @@ struct _lv_obj_t;
  * Possible states of a widget.
  * OR-ed values are possible
  */
-enum {
+enum _lv_state_t {
     LV_STATE_DEFAULT     =  0x0000,
     LV_STATE_CHECKED     =  0x0001,
     LV_STATE_FOCUSED     =  0x0002,
@@ -57,66 +56,88 @@ enum {
     LV_STATE_ANY = 0xFFFF,    /**< Special value can be used in some functions to target all states*/
 };
 
+#ifdef DOXYGEN
+typedef _lv_state_t lv_state_t;
+#else
 typedef uint16_t lv_state_t;
+#endif /*DOXYGEN*/
 
 /**
  * The possible parts of widgets.
  * The parts can be considered as the internal building block of the widgets.
  * E.g. slider = background + indicator + knob
- * Note every part is used by every widget
+ * Not all parts are used by every widget
  */
-enum {
+
+enum _lv_part_t {
     LV_PART_MAIN         = 0x000000,   /**< A background like rectangle*/
     LV_PART_SCROLLBAR    = 0x010000,   /**< The scrollbar(s)*/
     LV_PART_INDICATOR    = 0x020000,   /**< Indicator, e.g. for slider, bar, switch, or the tick box of the checkbox*/
     LV_PART_KNOB         = 0x030000,   /**< Like handle to grab to adjust the value*/
     LV_PART_SELECTED     = 0x040000,   /**< Indicate the currently selected option or section*/
-    LV_PART_ITEMS        = 0x050000,   /**< Used if the widget has multiple similar elements (e.g. tabel cells)*/
+    LV_PART_ITEMS        = 0x050000,   /**< Used if the widget has multiple similar elements (e.g. table cells)*/
     LV_PART_TICKS        = 0x060000,   /**< Ticks on scale e.g. for a chart or meter*/
     LV_PART_CURSOR       = 0x070000,   /**< Mark a specific place e.g. for text area's cursor or on a chart*/
 
-    LV_PART_CUSTOM_FIRST = 0x800000,    /**< Extension point for custom widgets*/
+    LV_PART_CUSTOM_FIRST = 0x080000,    /**< Extension point for custom widgets*/
 
-    LV_PART_ANY          = 0xFF0000,    /**< Special value can be used in some functions to target all parts*/
+    LV_PART_ANY          = 0x0F0000,    /**< Special value can be used in some functions to target all parts*/
 };
 
+#ifdef DOXYGEN
+typedef _lv_part_t lv_part_t;
+#else
 typedef uint32_t lv_part_t;
+#endif /*DOXYGEN*/
 
 /**
  * On/Off features controlling the object's behavior.
  * OR-ed values are possible
  */
-enum {
-    LV_OBJ_FLAG_HIDDEN          = (1 << 0),  /**< Make the object hidden. (Like it wasn't there at all)*/
-    LV_OBJ_FLAG_CLICKABLE       = (1 << 1),  /**< Make the object clickable by the input devices*/
-    LV_OBJ_FLAG_CLICK_FOCUSABLE = (1 << 2),  /**< Add focused state to the object when clicked*/
-    LV_OBJ_FLAG_CHECKABLE       = (1 << 3),  /**< Toggle checked state when the object is clicked*/
-    LV_OBJ_FLAG_SCROLLABLE      = (1 << 4),  /**< Make the object scrollable*/
-    LV_OBJ_FLAG_SCROLL_ELASTIC  = (1 << 5),  /**< Allow scrolling inside but with slower speed*/
-    LV_OBJ_FLAG_SCROLL_MOMENTUM = (1 << 6),  /**< Make the object scroll further when "thrown"*/
-    LV_OBJ_FLAG_SCROLL_ONE      = (1 << 7),   /**< Allow scrolling only one snapable children*/
-    LV_OBJ_FLAG_SCROLL_CHAIN    = (1 << 8),  /**< Allow propagating the scroll to a parent*/
-    LV_OBJ_FLAG_SCROLL_ON_FOCUS = (1 << 9),  /**< Automatically scroll object to make it visible when focused*/
-    LV_OBJ_FLAG_SNAPABLE        = (1 << 10), /**< If scroll snap is enabled on the parent it can snap to this object*/
-    LV_OBJ_FLAG_PRESS_LOCK      = (1 << 11), /**< Keep the object pressed even if the press slid from the object*/
-    LV_OBJ_FLAG_EVENT_BUBBLE    = (1 << 12), /**< Propagate the events to the parent too*/
-    LV_OBJ_FLAG_GESTURE_BUBBLE  = (1 << 13), /**< Propagate the gestures to the parent*/
-    LV_OBJ_FLAG_ADV_HITTEST     = (1 << 14), /**< Allow performing more accurate hit (click) test. E.g. consider rounded corners.*/
-    LV_OBJ_FLAG_IGNORE_LAYOUT   = (1 << 15), /**< Make the object position-able by the layouts*/
-    LV_OBJ_FLAG_FLOATING        = (1 << 16), /**< Do not scroll the object when the parent scrolls and ignore layout*/
+typedef enum {
+    LV_OBJ_FLAG_HIDDEN          = (1L << 0),  /**< Make the object hidden. (Like it wasn't there at all)*/
+    LV_OBJ_FLAG_CLICKABLE       = (1L << 1),  /**< Make the object clickable by the input devices*/
+    LV_OBJ_FLAG_CLICK_FOCUSABLE = (1L << 2),  /**< Add focused state to the object when clicked*/
+    LV_OBJ_FLAG_CHECKABLE       = (1L << 3),  /**< Toggle checked state when the object is clicked*/
+    LV_OBJ_FLAG_SCROLLABLE      = (1L << 4),  /**< Make the object scrollable*/
+    LV_OBJ_FLAG_SCROLL_ELASTIC  = (1L << 5),  /**< Allow scrolling inside but with slower speed*/
+    LV_OBJ_FLAG_SCROLL_MOMENTUM = (1L << 6),  /**< Make the object scroll further when "thrown"*/
+    LV_OBJ_FLAG_SCROLL_ONE      = (1L << 7),  /**< Allow scrolling only one snappable children*/
+    LV_OBJ_FLAG_SCROLL_CHAIN_HOR = (1L << 8), /**< Allow propagating the horizontal scroll to a parent*/
+    LV_OBJ_FLAG_SCROLL_CHAIN_VER = (1L << 9), /**< Allow propagating the vertical scroll to a parent*/
+    LV_OBJ_FLAG_SCROLL_CHAIN     = (LV_OBJ_FLAG_SCROLL_CHAIN_HOR | LV_OBJ_FLAG_SCROLL_CHAIN_VER),
+    LV_OBJ_FLAG_SCROLL_ON_FOCUS = (1L << 10),  /**< Automatically scroll object to make it visible when focused*/
+    LV_OBJ_FLAG_SCROLL_WITH_ARROW  = (1L << 11), /**< Allow scrolling the focused object with arrow keys*/
+    LV_OBJ_FLAG_SNAPPABLE       = (1L << 12), /**< If scroll snap is enabled on the parent it can snap to this object*/
+    LV_OBJ_FLAG_PRESS_LOCK      = (1L << 13), /**< Keep the object pressed even if the press slid from the object*/
+    LV_OBJ_FLAG_EVENT_BUBBLE    = (1L << 14), /**< Propagate the events to the parent too*/
+    LV_OBJ_FLAG_GESTURE_BUBBLE  = (1L << 15), /**< Propagate the gestures to the parent*/
+    LV_OBJ_FLAG_ADV_HITTEST     = (1L << 16), /**< Allow performing more accurate hit (click) test. E.g. consider rounded corners.*/
+    LV_OBJ_FLAG_IGNORE_LAYOUT   = (1L << 17), /**< Make the object position-able by the layouts*/
+    LV_OBJ_FLAG_FLOATING        = (1L << 18), /**< Do not scroll the object when the parent scrolls and ignore layout*/
+    LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS = (1L << 19), /**< Send `LV_EVENT_DRAW_TASK_ADDED` events*/
+    LV_OBJ_FLAG_OVERFLOW_VISIBLE = (1L << 20),/**< Do not clip the children to the parent's ext draw size*/
+#if LV_USE_FLEX
+    LV_OBJ_FLAG_FLEX_IN_NEW_TRACK = (1L << 21),     /**< Start a new flex track on this item*/
+#endif
 
-    LV_OBJ_FLAG_LAYOUT_1        = (1 << 23), /** Custom flag, free to use by layouts*/
-    LV_OBJ_FLAG_LAYOUT_2        = (1 << 24), /** Custom flag, free to use by layouts*/
+    LV_OBJ_FLAG_LAYOUT_1        = (1L << 23), /**< Custom flag, free to use by layouts*/
+    LV_OBJ_FLAG_LAYOUT_2        = (1L << 24), /**< Custom flag, free to use by layouts*/
 
-    LV_OBJ_FLAG_WIDGET_1        = (1 << 25), /** Custom flag, free to use by widget*/
-    LV_OBJ_FLAG_WIDGET_2        = (1 << 26), /** Custom flag, free to use by widget*/
+    LV_OBJ_FLAG_WIDGET_1        = (1L << 25), /**< Custom flag, free to use by widget*/
+    LV_OBJ_FLAG_WIDGET_2        = (1L << 26), /**< Custom flag, free to use by widget*/
+    LV_OBJ_FLAG_USER_1          = (1L << 27), /**< Custom flag, free to use by user*/
+    LV_OBJ_FLAG_USER_2          = (1L << 28), /**< Custom flag, free to use by user*/
+    LV_OBJ_FLAG_USER_3          = (1L << 29), /**< Custom flag, free to use by user*/
+    LV_OBJ_FLAG_USER_4          = (1L << 30), /**< Custom flag, free to use by user*/
+} _lv_obj_flag_t;
 
-    LV_OBJ_FLAG_USER_1          = (1 << 27), /** Custom flag, free to use by user*/
-    LV_OBJ_FLAG_USER_2          = (1 << 28), /** Custom flag, free to use by user*/
-    LV_OBJ_FLAG_USER_3          = (1 << 29), /** Custom flag, free to use by user*/
-    LV_OBJ_FLAG_USER_4          = (1 << 30), /** Custom flag, free to use by user*/
-};
+#ifdef DOXYGEN
+typedef _lv_obj_flag_t lv_obj_flag_t;
+#else
 typedef uint32_t lv_obj_flag_t;
+#endif /*DOXYGEN*/
+
 
 #include "lv_obj_tree.h"
 #include "lv_obj_pos.h"
@@ -124,7 +145,7 @@ typedef uint32_t lv_obj_flag_t;
 #include "lv_obj_style.h"
 #include "lv_obj_draw.h"
 #include "lv_obj_class.h"
-#include "lv_event.h"
+#include "lv_obj_event.h"
 #include "lv_group.h"
 
 /**
@@ -140,83 +161,50 @@ typedef struct {
     struct _lv_obj_t ** children;       /**< Store the pointer of the children in an array.*/
     uint32_t child_cnt;                 /**< Number of children*/
     lv_group_t * group_p;
+    lv_event_list_t event_list;
 
-    struct _lv_event_dsc_t * event_dsc;             /**< Dynamically allocated event callback and user data array*/
-    lv_point_t scroll;                      /**< The current X/Y scroll offset*/
+    lv_point_t scroll;                  /**< The current X/Y scroll offset*/
 
-    uint8_t ext_click_pad;      /**< Extra click padding in all direction*/
+    lv_coord_t ext_click_pad;           /**< Extra click padding in all direction*/
     lv_coord_t ext_draw_size;           /**< EXTend the size in every direction for drawing.*/
 
-    lv_scrollbar_mode_t scrollbar_mode :2; /**< How to display scrollbars*/
-    lv_scroll_snap_t scroll_snap_x : 2;      /**< Where to align the snapable children horizontally*/
-    lv_scroll_snap_t scroll_snap_y : 2;      /**< Where to align the snapable children horizontally*/
-    lv_dir_t scroll_dir :4;                /**< The allowed scroll direction(s)*/
-    lv_bidi_dir_t base_dir  : 2; /**< Base direction of texts related to this object*/
-    uint8_t event_dsc_cnt;           /**< Number of event callabcks stored in `event_cb` array*/
-}lv_obj_spec_attr_t;
+    lv_scrollbar_mode_t scrollbar_mode : 2; /**< How to display scrollbars*/
+    lv_scroll_snap_t scroll_snap_x : 2;     /**< Where to align the snappable children horizontally*/
+    lv_scroll_snap_t scroll_snap_y : 2;     /**< Where to align the snappable children vertically*/
+    lv_dir_t scroll_dir : 4;                /**< The allowed scroll direction(s)*/
+    uint8_t layer_type : 2;    /**< Cache the layer type here. Element of @lv_intermediate_layer_type_t */
+} _lv_obj_spec_attr_t;
 
 typedef struct _lv_obj_t {
     const lv_obj_class_t * class_p;
     struct _lv_obj_t * parent;
-    lv_obj_spec_attr_t * spec_attr;
-    lv_obj_style_t * styles;
-#if LV_USE_USER_DATA
-    void * user_data;
+    _lv_obj_spec_attr_t * spec_attr;
+    _lv_obj_style_t * styles;
+#if LV_OBJ_STYLE_CACHE
+    uint32_t style_main_prop_is_set;
+    uint32_t style_other_prop_is_set;
 #endif
+    void * user_data;
     lv_area_t coords;
     lv_obj_flag_t flags;
     lv_state_t state;
-    uint16_t layout_inv :1;
-    uint16_t scr_layout_inv :1;
-    uint16_t skip_trans :1;
-    uint16_t style_cnt  :6;
-    uint16_t h_layout   :1;
-    uint16_t w_layout   :1;
-}lv_obj_t;
-
-
-typedef struct {
-    const lv_point_t * point;
-    bool result;
-} lv_hit_test_info_t;
-
-/**
- * Used as the event parameter of ::LV_EVENT_COVER_CHECK to check if an area is covered by the object or not.
- * `res` should be set like this:
- *   - If there is a draw mask on the object set to ::LV_DRAW_RES_MASKED
- *   - If there is no draw mask but the object simply not covers the area and `res` is not set to ::LV_DRAW_RES_MASKED set to ::LV_DRAW_RES_NOT_COVER
- *     E.g. `if(cover == false && info->res != LV_DRAW_RES_MASKED) info->res = LV_DRAW_RES_NOT_COVER;`
- *   - If the area is fully covered by the object leave `res` unchanged.
- */
-typedef struct {
-    lv_draw_res_t res;              /**< Set to ::LV_DRAW_RES_NOT_COVER or ::LV_DRAW_RES_MASKED. */
-    const lv_area_t * area;         /**< The area to check */
-} lv_cover_check_info_t;
+    uint16_t layout_inv : 1;
+    uint16_t scr_layout_inv : 1;
+    uint16_t skip_trans : 1;
+    uint16_t style_cnt  : 6;
+    uint16_t h_layout   : 1;
+    uint16_t w_layout   : 1;
+    uint16_t is_deleting : 1;
+} lv_obj_t;
 
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
 
 /**
- * Initialize LVGL library.
- * Should be called before any other LVGL related function.
- */
-void lv_init(void);
-
-#if LV_ENABLE_GC || !LV_MEM_CUSTOM
-
-/**
- * Deinit the 'lv' library
- * Currently only implemented when not using custom allocators, or GC is enabled.
- */
-void lv_deinit(void);
-
-#endif
-
-/**
  * Create a base object (a rectangle)
  * @param parent    pointer to a parent object. If NULL then a screen will be created.
- * @return pointer to the new object
+ * @return          pointer to the new object
  */
 lv_obj_t * lv_obj_create(lv_obj_t * parent);
 
@@ -257,23 +245,14 @@ void lv_obj_add_state(lv_obj_t * obj, lv_state_t state);
 void lv_obj_clear_state(lv_obj_t * obj, lv_state_t state);
 
 /**
- * Set the base direction of the object
- * @param obj   pointer to an object
- * @param dir   the new base direction. `LV_BIDI_DIR_LTR/RTL/AUTO/INHERIT`
- */
-void lv_obj_set_base_dir(lv_obj_t * obj, lv_bidi_dir_t dir);
-
-/**
  * Set the user_data field of the object
  * @param obj   pointer to an object
  * @param user_data   pointer to the new user_data.
  */
-#if LV_USE_USER_DATA
 static inline void lv_obj_set_user_data(lv_obj_t * obj, void * user_data)
 {
     obj->user_data = user_data;
 }
-#endif
 
 /*=======================
  * Getter functions
@@ -295,14 +274,6 @@ bool lv_obj_has_flag(const lv_obj_t * obj, lv_obj_flag_t f);
  */
 bool lv_obj_has_flag_any(const lv_obj_t * obj, lv_obj_flag_t f);
 
-
-/**
- * Get the base direction of the object
- * @param obj   pointer to an object
- * @return      the base direction. `LV_BIDI_DIR_LTR/RTL/AUTO/INHERIT`
- */
-lv_bidi_dir_t lv_obj_get_base_dir(const lv_obj_t * obj);
-
 /**
  * Get the state of an object
  * @param obj   pointer to an object
@@ -323,19 +294,17 @@ bool lv_obj_has_state(const lv_obj_t * obj, lv_state_t state);
  * @param       obj pointer to an object
  * @return      the pointer to group of the object
  */
-void * lv_obj_get_group(const lv_obj_t * obj);
+lv_group_t * lv_obj_get_group(const lv_obj_t * obj);
 
 /**
  * Get the user_data field of the object
  * @param obj   pointer to an object
  * @return      the pointer to the user_data of the object
  */
-#if LV_USE_USER_DATA
 static inline void * lv_obj_get_user_data(lv_obj_t * obj)
 {
     return obj->user_data;
 }
-#endif
 
 /*=======================
  * Other functions
@@ -348,10 +317,10 @@ static inline void * lv_obj_get_user_data(lv_obj_t * obj)
 void lv_obj_allocate_spec_attr(lv_obj_t * obj);
 
 /**
- * Get object's and its ancestors type. Put their name in `type_buf` starting with the current type.
- * E.g. buf.type[0]="lv_btn", buf.type[1]="lv_cont", buf.type[2]="lv_obj"
- * @param obj   pointer to an object which type should be get
- * @param buf   pointer to an `lv_obj_type_t` buffer to store the types
+ * Check the type of obj.
+ * @param obj       pointer to an object
+ * @param class_p   a class to check (e.g. `lv_slider_class`)
+ * @return          true: `class_p` is the `obj` class.
  */
 bool lv_obj_check_type(const lv_obj_t * obj, const lv_obj_class_t * class_p);
 
@@ -366,15 +335,14 @@ bool lv_obj_has_class(const lv_obj_t * obj, const lv_obj_class_t * class_p);
 
 /**
  * Get the class (type) of the object
- * @param obj       pointer to an object
- * @return the class (type) of the object
+ * @param obj   pointer to an object
+ * @return      the class (type) of the object
  */
 const lv_obj_class_t * lv_obj_get_class(const lv_obj_t * obj);
 
 /**
- * Check if any object is still "alive", and part of the hierarchy
+ * Check if any object is still "alive".
  * @param obj       pointer to an object
- * @param obj_type  type of the object. (e.g. "lv_btn")
  * @return          true: valid
  */
 bool lv_obj_is_valid(const lv_obj_t * obj);
@@ -384,17 +352,18 @@ bool lv_obj_is_valid(const lv_obj_t * obj);
  **********************/
 
 #if LV_USE_ASSERT_OBJ
-#  define LV_ASSERT_OBJ(obj_p, obj_class)                                    \
-            LV_ASSERT_MSG(obj_p != NULL, "The object is NULL");               \
-            LV_ASSERT_MSG(lv_obj_has_class(obj_p, obj_class) == true, "Incompatible object type."); \
-            LV_ASSERT_MSG(lv_obj_is_valid(obj_p)  == true, "The object is invalid, deleted or corrupted?");
-
+#  define LV_ASSERT_OBJ(obj_p, obj_class)                                                               \
+    do {                                                                                                \
+        LV_ASSERT_MSG(obj_p != NULL, "The object is NULL");                                             \
+        LV_ASSERT_MSG(lv_obj_has_class(obj_p, obj_class) == true, "Incompatible object type.");         \
+        LV_ASSERT_MSG(lv_obj_is_valid(obj_p)  == true, "The object is invalid, deleted or corrupted?"); \
+    } while(0)
 # else
-# define LV_ASSERT_OBJ(obj_p, obj_class) do{}while(0)
+#  define LV_ASSERT_OBJ(obj_p, obj_class) do{}while(0)
 #endif
 
 #if LV_USE_LOG && LV_LOG_TRACE_OBJ_CREATE
-#  define LV_TRACE_OBJ_CREATE(...) LV_LOG_TRACE( __VA_ARGS__)
+#  define LV_TRACE_OBJ_CREATE(...) LV_LOG_TRACE(__VA_ARGS__)
 #else
 #  define LV_TRACE_OBJ_CREATE(...)
 #endif

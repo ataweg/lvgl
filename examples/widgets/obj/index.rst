@@ -1,13 +1,13 @@
-C
-^
 
-Base objects with custom styles 
-""""""""""""""""""""""""""""""""
+Base objects with custom styles
+-------------------------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_obj/lv_ex_obj_1
+.. lv_example:: widgets/obj/lv_example_obj_1
   :language: c
 
-MicroPython
-^^^^^^^^^^^
+Make an object draggable
+------------------------
 
-No examples yet.
+.. lv_example:: widgets/obj/lv_example_obj_2
+  :language: c
+

@@ -1,12 +1,23 @@
-# Create style for the Arcs
-style = lv.style_t()
-lv.style_copy(style, lv.style_plain)
-style.line.color = lv.color_make(0,0,255) # Arc color
-style.line.width = 8                      # Arc width
+def value_changed_event_cb(e,label):
+    arc = e.get_target_obj()
+
+    txt = "{:d}%".format(arc.get_value())
+    label.set_text(txt)
+
+    # Rotate the label to the current position of the arc
+    arc.rotate_obj_to_angle(label, 25)
+
+label = lv.label(lv.scr_act())
 
 # Create an Arc
 arc = lv.arc(lv.scr_act())
-arc.set_style(lv.arc.STYLE.MAIN, style)   # Use the new style
-arc.set_angles(90, 60)
 arc.set_size(150, 150)
-arc.align(None, lv.ALIGN.CENTER, 0, 0)
+arc.set_rotation(135)
+arc.set_bg_angles(0, 270)
+arc.set_value(10)
+arc.center()
+arc.add_event(lambda e: value_changed_event_cb(e,label),lv.EVENT.VALUE_CHANGED, None)
+
+# Manually update the label for the first time
+arc.send_event(lv.EVENT.VALUE_CHANGED, None)
+

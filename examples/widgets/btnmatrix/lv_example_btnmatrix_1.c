@@ -8,7 +8,7 @@ static void event_handler(lv_event_t * e)
     if(code == LV_EVENT_VALUE_CHANGED) {
         uint32_t id = lv_btnmatrix_get_selected_btn(obj);
         const char * txt = lv_btnmatrix_get_btn_text(obj, id);
-
+        LV_UNUSED(txt);
         LV_LOG_USER("%s was pressed\n", txt);
     }
 }
@@ -16,7 +16,8 @@ static void event_handler(lv_event_t * e)
 
 static const char * btnm_map[] = {"1", "2", "3", "4", "5", "\n",
                                   "6", "7", "8", "9", "0", "\n",
-                                  "Action1", "Action2", ""};
+                                  "Action1", "Action2", ""
+                                 };
 
 void lv_example_btnmatrix_1(void)
 {
@@ -26,7 +27,7 @@ void lv_example_btnmatrix_1(void)
     lv_btnmatrix_set_btn_ctrl(btnm1, 10, LV_BTNMATRIX_CTRL_CHECKABLE);
     lv_btnmatrix_set_btn_ctrl(btnm1, 11, LV_BTNMATRIX_CTRL_CHECKED);
     lv_obj_align(btnm1, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_event_cb(btnm1, event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_add_event(btnm1, event_handler, LV_EVENT_ALL, NULL);
 }
 
 #endif

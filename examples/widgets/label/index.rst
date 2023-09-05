@@ -1,25 +1,31 @@
-C
-^
 
-Label recoloring and scrolling 
-"""""""""""""""""""""""""""""""
+Line wrap, recoloring and scrolling
+-----------------------------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_label/lv_ex_label_1
+.. lv_example:: widgets/label/lv_example_label_1
   :language: c
 
-Text shadow 
-""""""""""""
+Text shadow
+------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_label/lv_ex_label_2
+.. lv_example:: widgets/label/lv_example_label_2
   :language: c
 
-Align labels 
-""""""""""""
+Show LTR, RTL and Chinese texts
+-------------------------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_label/lv_ex_label_3
+.. lv_example:: widgets/label/lv_example_label_3
   :language: c
 
-MicroPython
-^^^^^^^^^^^
+Draw label with gradient color
+------------------------------
 
-No examples yet.
+.. lv_example:: widgets/label/lv_example_label_4
+  :language: c
+
+Customize circular scrolling animation
+--------------------------------------
+
+.. lv_example:: widgets/label/lv_example_label_5
+  :language: c
+

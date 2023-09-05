@@ -14,7 +14,6 @@ extern "C" {
  *      INCLUDES
  *********************/
 #include "../lv_conf_internal.h"
-#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -22,20 +21,11 @@ extern "C" {
  *      DEFINES
  *********************/
 
-#define _LV_COORD_MAX_REDUCE    8192
-
 #if LV_USE_LARGE_COORD
 typedef int32_t lv_coord_t;
 #else
 typedef int16_t lv_coord_t;
 #endif
-
-/*To allow some special values in the end reduce the max value*/
-#define LV_COORD_MAX ((lv_coord_t)((uint32_t)((uint32_t)1 << (8 * sizeof(lv_coord_t) - 1)) - _LV_COORD_MAX_REDUCE))
-#define LV_COORD_MIN (-LV_COORD_MAX)
-
-LV_EXPORT_CONST_INT(LV_COORD_MAX);
-LV_EXPORT_CONST_INT(LV_COORD_MIN);
 
 /**********************
  *      TYPEDEFS
@@ -58,8 +48,10 @@ typedef struct {
 } lv_area_t;
 
 /** Alignments*/
-enum {
-    LV_ALIGN_TOP_LEFT = 0,
+
+enum _lv_align_t {
+    LV_ALIGN_DEFAULT = 0,
+    LV_ALIGN_TOP_LEFT,
     LV_ALIGN_TOP_MID,
     LV_ALIGN_TOP_RIGHT,
     LV_ALIGN_BOTTOM_LEFT,
@@ -82,9 +74,15 @@ enum {
     LV_ALIGN_OUT_RIGHT_MID,
     LV_ALIGN_OUT_RIGHT_BOTTOM,
 };
-typedef uint8_t lv_align_t;
 
-enum {
+#ifdef DOXYGEN
+typedef _lv_align_t lv_align_t;
+#else
+typedef uint8_t lv_align_t;
+#endif /*DOXYGEN*/
+
+
+enum _lv_dir_t {
     LV_DIR_NONE     = 0x00,
     LV_DIR_LEFT     = (1 << 0),
     LV_DIR_RIGHT    = (1 << 1),
@@ -95,7 +93,17 @@ enum {
     LV_DIR_ALL      = LV_DIR_HOR | LV_DIR_VER,
 };
 
+#ifdef DOXYGEN
+typedef _lv_dir_t lv_dir_t;
+#else
 typedef uint8_t lv_dir_t;
+#endif /*DOXYGEN*/
+
+typedef struct  {
+    int32_t angle_prev;
+    int32_t sinma;
+    int32_t cosma;
+} lv_area_transform_cache_t;
 
 /**********************
  * GLOBAL PROTOTYPES
@@ -188,7 +196,7 @@ bool _lv_area_intersect(lv_area_t * res_p, const lv_area_t * a1_p, const lv_area
 
 /**
  * Join two areas into a third which involves the other two
- * @param res_p pointer to an area, the result will be stored here
+ * @param a_res_p pointer to an area, the result will be stored here
  * @param a1_p pointer to the first area
  * @param a2_p pointer to the second area
  */
@@ -220,39 +228,72 @@ bool _lv_area_is_on(const lv_area_t * a1_p, const lv_area_t * a2_p);
  */
 bool _lv_area_is_in(const lv_area_t * ain_p, const lv_area_t * aholder_p, lv_coord_t radius);
 
+
+/**
+ * Check if an area is fully out of an other
+ * @param aout_p pointer to an area which could be in 'aholder_p'
+ * @param aholder_p pointer to an area which could involve 'ain_p'
+ * @param radius radius of `aholder_p` (e.g. for rounded rectangle)
+ * @return true: `aout_p` is fully outside `aholder_p`
+ */
+bool _lv_area_is_out(const lv_area_t * aout_p, const lv_area_t * aholder_p, lv_coord_t radius);
+
+/**
+ * Check if 2 area is the same
+ * @param a pointer to an area
+ * @param b pointer to another area
+ */
+bool _lv_area_is_equal(const lv_area_t * a, const lv_area_t * b);
+
 /**
  * Align an area to an other
- * @param base an are where the other will be aligned
+ * @param base an area where the other will be aligned
  * @param to_align the area to align
  * @param align `LV_ALIGN_...`
- * @param res x/y coordinates where `to_align` align area should be placed
+ * @param ofs_x X offset
+ * @param ofs_y Y offset
  */
-void _lv_area_align(const lv_area_t * base, const lv_area_t * to_align, lv_align_t align, lv_point_t * res);
+void lv_area_align(const lv_area_t * base, lv_area_t * to_align, lv_align_t align, lv_coord_t ofs_x, lv_coord_t ofs_y);
+
+void lv_point_transform(lv_point_t * p, int32_t angle, int32_t zoom, const lv_point_t * pivot);
 
 /**********************
  *      MACROS
  **********************/
 
-#define _LV_COORD_TYPE_SHIFT    (13)
+#if LV_USE_LARGE_COORD
+#define _LV_COORD_TYPE_SHIFT    (29U)
+#else
+#define _LV_COORD_TYPE_SHIFT    (13U)
+#endif
+
 #define _LV_COORD_TYPE_MASK     (3 << _LV_COORD_TYPE_SHIFT)
-#define _LV_COORD_PLAIN(x)      ((x) & (~_LV_COORD_TYPE_MASK))  /*Remove type specifiers*/
+#define _LV_COORD_TYPE(x)       ((x) & _LV_COORD_TYPE_MASK)  /*Extract type specifiers*/
+#define _LV_COORD_PLAIN(x)      ((x) & ~_LV_COORD_TYPE_MASK) /*Remove type specifiers*/
 
 #define _LV_COORD_TYPE_PX       (0 << _LV_COORD_TYPE_SHIFT)
 #define _LV_COORD_TYPE_SPEC     (1 << _LV_COORD_TYPE_SHIFT)
-#define _LV_COORD_TYPE_RESERVED (3 << _LV_COORD_TYPE_SHIFT)
+#define _LV_COORD_TYPE_PX_NEG   (3 << _LV_COORD_TYPE_SHIFT)
 
-#define LV_COORD_IS_PX(x)     ((((x) & _LV_COORD_TYPE_MASK) == _LV_COORD_TYPE_PX) ? true : false)
-#define LV_COORD_IS_SPEC(x)   ((((x) & _LV_COORD_TYPE_MASK) == _LV_COORD_TYPE_SPEC) ? true : false)
+#define LV_COORD_IS_PX(x)       (_LV_COORD_TYPE(x) == _LV_COORD_TYPE_PX || _LV_COORD_TYPE(x) == _LV_COORD_TYPE_PX_NEG)
+#define LV_COORD_IS_SPEC(x)     (_LV_COORD_TYPE(x) == _LV_COORD_TYPE_SPEC)
 
-#define LV_COORD_SET_SPEC(x)   ((x) | _LV_COORD_TYPE_SPEC)
+#define LV_COORD_SET_SPEC(x)    ((x) | _LV_COORD_TYPE_SPEC)
 
 /*Special coordinates*/
-#define LV_PCT(x)      LV_COORD_SET_SPEC(x)
-#define LV_COORD_IS_PCT(x)   ((LV_COORD_IS_SPEC(x) && _LV_COORD_PLAIN(x) <= 1000) ? true : false)
-#define LV_COORD_GET_PCT(x)  _LV_COORD_PLAIN(x)
-#define LV_SIZE_CONTENT         LV_COORD_SET_SPEC(1001)
+#define LV_PCT(x)               (x < 0 ? LV_COORD_SET_SPEC(1000 - (x)) : LV_COORD_SET_SPEC(x))
+#define LV_COORD_IS_PCT(x)      ((LV_COORD_IS_SPEC(x) && _LV_COORD_PLAIN(x) <= 2000))
+#define LV_COORD_GET_PCT(x)     (_LV_COORD_PLAIN(x) > 1000 ? 1000 - _LV_COORD_PLAIN(x) : _LV_COORD_PLAIN(x))
+#define LV_SIZE_CONTENT         LV_COORD_SET_SPEC(2001)
 
 LV_EXPORT_CONST_INT(LV_SIZE_CONTENT);
+
+/*Max coordinate value*/
+#define LV_COORD_MAX            ((1 << _LV_COORD_TYPE_SHIFT) - 1)
+#define LV_COORD_MIN            (-LV_COORD_MAX)
+
+LV_EXPORT_CONST_INT(LV_COORD_MAX);
+LV_EXPORT_CONST_INT(LV_COORD_MIN);
 
 /**
  * Convert a percentage value to `lv_coord_t`.
@@ -263,6 +304,15 @@ LV_EXPORT_CONST_INT(LV_SIZE_CONTENT);
 static inline lv_coord_t lv_pct(lv_coord_t x)
 {
     return LV_PCT(x);
+}
+
+static inline lv_coord_t lv_pct_to_px(lv_coord_t v, lv_coord_t base)
+{
+    if(LV_COORD_IS_PCT(v)) {
+        return (LV_COORD_GET_PCT(v) * base) / 100;
+    }
+
+    return v;
 }
 
 #ifdef __cplusplus

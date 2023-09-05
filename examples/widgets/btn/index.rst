@@ -1,16 +1,20 @@
-C
-^
 
-Simple Buttons 
-""""""""""""""""
+Simple Buttons
+--------------
 
-.. lv_example:: lv_ex_widgets/lv_ex_btn/lv_ex_btn_1
+.. lv_example:: widgets/btn/lv_example_btn_1
   :language: c
 
-.. lv_example:: lv_ex_widgets/lv_ex_btn/lv_ex_btn_2
+
+Styling buttons
+---------------
+
+.. lv_example:: widgets/btn/lv_example_btn_2
   :language: c
 
-MicroPython
-^^^^^^^^^^^
+Gummy button
+------------
 
-No examples yet.
+.. lv_example:: widgets/btn/lv_example_btn_3
+  :language: c
+

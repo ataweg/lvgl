@@ -5,8 +5,8 @@ static void event_cb(lv_event_t * e)
 {
     lv_obj_t * obj = lv_event_get_target(e);
     uint32_t id = lv_btnmatrix_get_selected_btn(obj);
-    bool prev = id == 0 ? true : false;
-    bool next = id == 6 ? true : false;
+    bool prev = id == 0;
+    bool next = id == 6;
     if(prev || next) {
         /*Find the checked button*/
         uint32_t i;
@@ -22,7 +22,7 @@ static void event_cb(lv_event_t * e)
 }
 
 /**
- * Make a button group
+ * Make a button group (pagination)
  */
 void lv_example_btnmatrix_3(void)
 {
@@ -50,7 +50,7 @@ void lv_example_btnmatrix_3(void)
     lv_btnmatrix_set_map(btnm, map);
     lv_obj_add_style(btnm, &style_bg, 0);
     lv_obj_add_style(btnm, &style_btn, LV_PART_ITEMS);
-    lv_obj_add_event_cb(btnm, event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event(btnm, event_cb, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_set_size(btnm, 225, 35);
 
     /*Allow selecting on one number at time*/

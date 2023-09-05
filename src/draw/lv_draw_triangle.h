@@ -22,28 +22,23 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+typedef struct {
+    lv_draw_dsc_base_t base;
+
+    lv_opa_t bg_opa;
+    lv_color_t bg_color;
+    lv_grad_dsc_t bg_grad;
+
+    lv_point_t p[3];
+} lv_draw_triangle_dsc_t;
 
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
 
-/**
- * Draw a triangle
- * @param points pointer to an array with 3 points
- * @param clip_area the triangle will be drawn only in this area
- * @param draw_dsc pointer to an initialized `lv_draw_rect_dsc_t` variable
- */
-void lv_draw_triangle(const lv_point_t points[], const lv_area_t * clip, const lv_draw_rect_dsc_t * draw_dsc);
+void lv_draw_triangle_dsc_init(lv_draw_triangle_dsc_t * draw_dsc);
 
-/**
- * Draw a polygon. Only convex polygons are supported.
- * @param points an array of points
- * @param point_cnt number of points
- * @param clip_area polygon will be drawn only in this area
- * @param draw_dsc pointer to an initialized `lv_draw_rect_dsc_t` variable
- */
-void lv_draw_polygon(const lv_point_t points[], uint16_t point_cnt, const lv_area_t * mask,
-                     const lv_draw_rect_dsc_t * draw_dsc);
+void lv_draw_triangle(struct _lv_layer_t * layer, const lv_draw_triangle_dsc_t * draw_dsc);
 
 /**********************
  *      MACROS
