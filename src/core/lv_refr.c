@@ -329,6 +329,11 @@ void _lv_disp_refr_timer(lv_timer_t * tmr)
 
         /*Copy invalid areas for sync next refresh*/
         if(disp_refr->driver->direct_mode) {
+
+            /*Do not copy areas if not double buffered*/
+            if(disp_refr->driver->draw_buf->buf2 == NULL)
+                return;
+
             uint16_t i;
             for(i = 0; i < disp_refr->inv_p; i++) {
                 if(disp_refr->inv_area_joined[i])
@@ -973,7 +978,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         lv_obj_redraw(draw_ctx, obj);
     }
     else {
-        lv_opa_t opa = lv_obj_get_style_opa(obj, 0);
+        lv_opa_t opa = lv_obj_get_style_opa_layered(obj, 0);
         if(opa < LV_OPA_MIN) return;
 
         lv_area_t layer_area_full;
