@@ -6,27 +6,27 @@
  */
 void lv_example_scale_4(void)
 {
-    lv_obj_t * scale = lv_scale_create(lv_scr_act());
+    lv_obj_t * scale = lv_scale_create(lv_screen_active());
     lv_obj_set_size(scale, 150, 150);
     lv_scale_set_label_show(scale, true);
-    lv_scale_set_mode(scale, LV_SCALE_MODE_ROUND_OUTTER);
+    lv_scale_set_mode(scale, LV_SCALE_MODE_ROUND_OUTER);
     lv_obj_center(scale);
 
-    lv_scale_set_total_tick_count(scale, 20);
+    lv_scale_set_total_tick_count(scale, 21);
     lv_scale_set_major_tick_every(scale, 5);
 
-    lv_scale_set_major_tick_length(scale, 10);
-    lv_scale_set_minor_tick_length(scale, 5);
+    lv_obj_set_style_length(scale, 5, LV_PART_ITEMS);
+    lv_obj_set_style_length(scale, 10, LV_PART_INDICATOR);
     lv_scale_set_range(scale, 0, 100);
 
-    static char * custom_labels[] = {"0 °C", "25 °C", "50 °C", "75 °C", "100 °C", NULL};
+    static const char * custom_labels[] = {"0 °C", "25 °C", "50 °C", "75 °C", "100 °C", NULL};
     lv_scale_set_text_src(scale, custom_labels);
 
     static lv_style_t indicator_style;
     lv_style_init(&indicator_style);
 
     /* Label style properties */
-    lv_style_set_text_font(&indicator_style, &lv_font_montserrat_14);
+    lv_style_set_text_font(&indicator_style, LV_FONT_DEFAULT);
     lv_style_set_text_color(&indicator_style, lv_palette_darken(LV_PALETTE_BLUE, 3));
 
     /* Major tick properties */
@@ -59,7 +59,7 @@ void lv_example_scale_4(void)
     lv_style_init(&section_main_line_style);
 
     /* Label style properties */
-    lv_style_set_text_font(&section_label_style, &lv_font_montserrat_14);
+    lv_style_set_text_font(&section_label_style, LV_FONT_DEFAULT);
     lv_style_set_text_color(&section_label_style, lv_palette_darken(LV_PALETTE_RED, 3));
 
     lv_style_set_line_color(&section_label_style, lv_palette_darken(LV_PALETTE_RED, 3));
@@ -74,7 +74,7 @@ void lv_example_scale_4(void)
 
     /* Configure section styles */
     lv_scale_section_t * section = lv_scale_add_section(scale);
-    lv_scale_section_set_range(section, 80, 100);
+    lv_scale_section_set_range(section, 75, 100);
     lv_scale_section_set_style(section, LV_PART_INDICATOR, &section_label_style);
     lv_scale_section_set_style(section, LV_PART_ITEMS, &section_minor_tick_style);
     lv_scale_section_set_style(section, LV_PART_MAIN, &section_main_line_style);

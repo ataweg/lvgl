@@ -21,7 +21,7 @@
  *  STATIC PROTOTYPES
  **********************/
 static lv_obj_t * switch_create(lv_obj_t * parent, const char * title, lv_obj_flag_t flag, bool en);
-static void generic_swicth_event_cb(lv_event_t * e);
+static void generic_switch_event_cb(lv_event_t * e);
 
 /**********************
  *  STATIC VARIABLES
@@ -37,10 +37,10 @@ static lv_obj_t * list;
  **********************/
 void lv_demo_scroll(void)
 {
-    lv_obj_t * panel = lv_obj_create(lv_scr_act());
+    lv_obj_t * panel = lv_obj_create(lv_screen_active());
     lv_obj_set_style_shadow_width(panel, 16, 0);
-    lv_obj_set_style_shadow_ofs_y(panel, 8, 0);
-    lv_obj_set_style_shadow_ofs_x(panel, 4, 0);
+    lv_obj_set_style_shadow_offset_y(panel, 8, 0);
+    lv_obj_set_style_shadow_offset_x(panel, 4, 0);
     lv_obj_set_style_shadow_opa(panel, LV_OPA_40, 0);
 
     lv_obj_set_size(panel, lv_pct(70), lv_pct(90));
@@ -49,22 +49,21 @@ void lv_demo_scroll(void)
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     list = lv_list_create(panel);
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image1.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image2.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image3.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image4.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image5.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image6.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image7.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image8.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image9.png");
-    lv_list_add_btn(list, LV_SYMBOL_IMAGE, "Image10.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image1.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image2.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image3.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image4.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image5.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image6.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image7.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image8.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image9.png");
+    lv_list_add_button(list, LV_SYMBOL_IMAGE, "Image10.png");
 
     switch_create(panel, "Scrollable", LV_OBJ_FLAG_SCROLLABLE, true);
     switch_create(panel, "Scroll chain", LV_OBJ_FLAG_SCROLL_CHAIN, true);
     switch_create(panel, "Elastic scroll", LV_OBJ_FLAG_SCROLL_ELASTIC, true);
     switch_create(panel, "Add scroll momentum", LV_OBJ_FLAG_SCROLL_MOMENTUM, true);
-
 
     /*Show the switches first*/
     lv_obj_move_foreground(list);
@@ -88,26 +87,26 @@ static lv_obj_t * switch_create(lv_obj_t * parent, const char * title, lv_obj_fl
     lv_obj_set_flex_grow(label, 1);
 
     lv_obj_t * sw = lv_switch_create(cont);
-    lv_obj_add_event(sw, generic_swicth_event_cb, LV_EVENT_VALUE_CHANGED, (void *)((lv_uintptr_t) flag));
+    lv_obj_add_event_cb(sw, generic_switch_event_cb, LV_EVENT_VALUE_CHANGED, (void *)((lv_uintptr_t) flag));
     if(en) {
         lv_obj_add_state(sw, LV_STATE_CHECKED);
         lv_obj_add_flag(list, flag);
     }
     else {
-        lv_obj_clear_state(sw, LV_STATE_CHECKED);
-        lv_obj_clear_flag(list, flag);
+        lv_obj_remove_state(sw, LV_STATE_CHECKED);
+        lv_obj_remove_flag(list, flag);
     }
 
     return cont;
 }
 
-static void generic_swicth_event_cb(lv_event_t * e)
+static void generic_switch_event_cb(lv_event_t * e)
 {
     lv_obj_t * sw = lv_event_get_target(e);
     lv_obj_flag_t flag = (lv_obj_flag_t)((lv_uintptr_t)lv_event_get_user_data(e));
 
     if(lv_obj_has_state(sw, LV_STATE_CHECKED)) lv_obj_add_flag(list, flag);
-    else lv_obj_clear_flag(list, flag);
+    else lv_obj_remove_flag(list, flag);
 }
 
 #endif

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_style.h
  *
  */
@@ -13,13 +13,11 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
-#include <stdbool.h>
-#include <stdint.h>
 #include "../font/lv_font.h"
 #include "lv_color.h"
 #include "lv_area.h"
 #include "lv_anim.h"
-#include "lv_txt.h"
+#include "lv_text.h"
 #include "lv_types.h"
 #include "lv_assert.h"
 #include "lv_bidi.h"
@@ -48,8 +46,8 @@ extern "C" {
 /**
  * Other constants
  */
-#define LV_ZOOM_NONE            256        /*Value for not zooming the image*/
-LV_EXPORT_CONST_INT(LV_ZOOM_NONE);
+#define LV_SCALE_NONE            256        /*Value for not zooming the image*/
+LV_EXPORT_CONST_INT(LV_SCALE_NONE);
 
 // *INDENT-OFF*
 #if LV_USE_ASSERT_STYLE
@@ -108,7 +106,6 @@ typedef _lv_text_decor_t lv_text_decor_t;
 typedef uint8_t lv_text_decor_t;
 #endif /*DOXYGEN*/
 
-
 /**
  * Selects on which sides border should be drawn
  * 'OR'ed values can be used.
@@ -129,39 +126,36 @@ typedef _lv_border_side_t lv_border_side_t;
 typedef uint8_t lv_border_side_t;
 #endif /*DOXYGEN*/
 
-
 /**
  * The direction of the gradient.
  */
 enum _lv_grad_dir_t {
-    LV_GRAD_DIR_NONE, /**< No gradient (the `grad_color` property is ignored)*/
-    LV_GRAD_DIR_VER,  /**< Vertical (top to bottom) gradient*/
-    LV_GRAD_DIR_HOR,  /**< Horizontal (left to right) gradient*/
+    LV_GRAD_DIR_NONE,       /**< No gradient (the `grad_color` property is ignored)*/
+    LV_GRAD_DIR_VER,        /**< Simple vertical (top to bottom) gradient*/
+    LV_GRAD_DIR_HOR,        /**< Simple horizontal (left to right) gradient*/
+    LV_GRAD_DIR_LINEAR,     /**< Linear gradient defined by start and end points. Can be at any angle.*/
+    LV_GRAD_DIR_RADIAL,     /**< Radial gradient defined by start and end circles*/
+    LV_GRAD_DIR_CONICAL,    /**< Conical gradient defined by center point, start and end angles*/
+};
+
+/**
+ * Gradient behavior outside the defined range.
+*/
+enum _lv_grad_extend_t {
+    LV_GRAD_EXTEND_PAD,     /**< Repeat the same color*/
+    LV_GRAD_EXTEND_REPEAT,  /**< Repeat the pattern*/
+    LV_GRAD_EXTEND_REFLECT, /**< Repeat the pattern mirrored*/
 };
 
 #ifdef DOXYGEN
 typedef _lv_grad_dir_t lv_grad_dir_t;
+typedef _lv_grad_type_t lv_grad_type_t;
+typedef _lv_grad_extend_t lv_grad_extend_t;
 #else
 typedef uint8_t lv_grad_dir_t;
+typedef uint8_t lv_grad_type_t;
+typedef uint8_t lv_grad_extend_t;
 #endif /*DOXYGEN*/
-
-
-/**
- * The dithering algorithm for the gradient
- * Depends on LV_DRAW_SW_GRADIENT_DITHER
- */
-enum _lv_dither_mode_t {
-    LV_DITHER_NONE,     /**< No dithering, colors are just quantized to the output resolution*/
-    LV_DITHER_ORDERED,  /**< Ordered dithering. Faster to compute and use less memory but lower quality*/
-    LV_DITHER_ERR_DIFF, /**< Error diffusion mode. Slower to compute and use more memory but give highest dither quality*/
-};
-
-#ifdef DOXYGEN
-typedef _lv_dither_mode_t lv_dither_mode_t;
-#else
-typedef uint8_t lv_dither_mode_t;
-#endif /*DOXYGEN*/
-
 
 /** A gradient stop definition.
  *  This matches a color and a position in a virtual 0-255 scale.
@@ -174,12 +168,37 @@ typedef struct {
 
 /** A descriptor of a gradient. */
 typedef struct {
-    lv_gradient_stop_t   stops[LV_GRADIENT_MAX_STOPS]; /**< A gradient stop array */
-    uint8_t              stops_count;                  /**< The number of used stops in the array */
-    lv_grad_dir_t        dir : 3;                      /**< The gradient direction.
-                                                        * Any of LV_GRAD_DIR_HOR, LV_GRAD_DIR_VER, LV_GRAD_DIR_NONE */
-    lv_dither_mode_t     dither : 3;                   /**< Whether to dither the gradient or not.
-                                                        * Any of LV_DITHER_NONE, LV_DITHER_ORDERED, LV_DITHER_ERR_DIFF */
+    lv_gradient_stop_t   stops[LV_GRADIENT_MAX_STOPS];  /**< A gradient stop array */
+    uint8_t              stops_count;                   /**< The number of used stops in the array */
+    lv_grad_dir_t        dir : 3;                       /**< The gradient direction.
+                                                         * Any of LV_GRAD_DIR_NONE, LV_GRAD_DIR_VER, LV_GRAD_DIR_HOR,
+                                                           LV_GRAD_TYPE_LINEAR, LV_GRAD_TYPE_RADIAL, LV_GRAD_TYPE_CONICAL */
+    lv_grad_extend_t     extend : 2;                    /**< Behaviour outside the defined range.
+                                                         * LV_GRAD_EXTEND_NONE, LV_GRAD_EXTEND_PAD, LV_GRAD_EXTEND_REPEAT, LV_GRAD_EXTEND_REFLECT */
+#if LV_USE_DRAW_SW_COMPLEX_GRADIENTS
+    union {
+        /*Linear gradient parameters*/
+        struct {
+            lv_point_t  start;                          /**< Linear gradient vector start point */
+            lv_point_t  end;                            /**< Linear gradient vector end point */
+        } linear;
+        /*Radial gradient parameters*/
+        struct {
+            lv_point_t  focal;                          /**< Center of the focal (starting) circle in local coordinates */
+            /* (can be the same as the ending circle to create concentric circles) */
+            lv_point_t  focal_extent;                   /**< Point on the circle (can be the same as the center) */
+            lv_point_t  end;                            /**< Center of the ending circle in local coordinates */
+            lv_point_t  end_extent;                     /**< Point on the circle determining the radius of the gradient */
+        } radial;
+        /*Conical gradient parameters*/
+        struct {
+            lv_point_t  center;                         /**< Conical gradient center point */
+            int16_t     start_angle;                    /**< Start angle 0..3600 */
+            int16_t     end_angle;                      /**< End angle 0..3600 */
+        } conical;
+    } params;
+    void * state;
+#endif
 } lv_grad_dsc_t;
 
 /**
@@ -202,6 +221,7 @@ enum _lv_style_prop_t {
     /*Group 0*/
     LV_STYLE_WIDTH                  = 1,
     LV_STYLE_HEIGHT                 = 2,
+    LV_STYLE_LENGTH                 = 3,
 
     LV_STYLE_MIN_WIDTH              = 4,
     LV_STYLE_MAX_WIDTH              = 5,
@@ -213,7 +233,6 @@ enum _lv_style_prop_t {
     LV_STYLE_ALIGN                  = 10,
 
     LV_STYLE_RADIUS                 = 12,
-
 
     /*Group 1*/
     LV_STYLE_PAD_TOP                = 16,
@@ -234,24 +253,23 @@ enum _lv_style_prop_t {
     LV_STYLE_BG_COLOR               = 28,
     LV_STYLE_BG_OPA                 = 29,
 
-
     LV_STYLE_BG_GRAD_DIR            = 32,
-    LV_STYLE_BG_GRAD_COLOR          = 33,
-    LV_STYLE_BG_MAIN_STOP           = 34,
-    LV_STYLE_BG_GRAD_STOP           = 35,
+    LV_STYLE_BG_MAIN_STOP           = 33,
+    LV_STYLE_BG_GRAD_STOP           = 34,
+    LV_STYLE_BG_GRAD_COLOR          = 35,
 
-    LV_STYLE_BG_GRAD                = 36,
-    LV_STYLE_BG_DITHER_MODE         = 37,
-    LV_STYLE_BASE_DIR               = 38,
+    LV_STYLE_BG_MAIN_OPA            = 36,
+    LV_STYLE_BG_GRAD_OPA            = 37,
+    LV_STYLE_BG_GRAD                = 38,
+    LV_STYLE_BASE_DIR               = 39,
 
-    LV_STYLE_BG_IMG_SRC             = 40,
-    LV_STYLE_BG_IMG_OPA             = 41,
-    LV_STYLE_BG_IMG_RECOLOR         = 42,
-    LV_STYLE_BG_IMG_RECOLOR_OPA     = 43,
+    LV_STYLE_BG_IMAGE_SRC             = 40,
+    LV_STYLE_BG_IMAGE_OPA             = 41,
+    LV_STYLE_BG_IMAGE_RECOLOR         = 42,
+    LV_STYLE_BG_IMAGE_RECOLOR_OPA     = 43,
 
-    LV_STYLE_BG_IMG_TILED           = 44,
+    LV_STYLE_BG_IMAGE_TILED           = 44,
     LV_STYLE_CLIP_CORNER            = 45,
-
 
     /*Group 3*/
     LV_STYLE_BORDER_WIDTH           = 48,
@@ -271,13 +289,13 @@ enum _lv_style_prop_t {
     LV_STYLE_SHADOW_COLOR           = 61,
     LV_STYLE_SHADOW_OPA             = 62,
 
-    LV_STYLE_SHADOW_OFS_X           = 64,
-    LV_STYLE_SHADOW_OFS_Y           = 65,
+    LV_STYLE_SHADOW_OFFSET_X        = 64,
+    LV_STYLE_SHADOW_OFFSET_Y        = 65,
     LV_STYLE_SHADOW_SPREAD          = 66,
 
-    LV_STYLE_IMG_OPA                = 68,
-    LV_STYLE_IMG_RECOLOR            = 69,
-    LV_STYLE_IMG_RECOLOR_OPA        = 70,
+    LV_STYLE_IMAGE_OPA                = 68,
+    LV_STYLE_IMAGE_RECOLOR            = 69,
+    LV_STYLE_IMAGE_RECOLOR_OPA        = 70,
 
     LV_STYLE_LINE_WIDTH             = 72,
     LV_STYLE_LINE_DASH_WIDTH        = 73,
@@ -291,58 +309,57 @@ enum _lv_style_prop_t {
     LV_STYLE_ARC_ROUNDED            = 81,
     LV_STYLE_ARC_COLOR              = 82,
     LV_STYLE_ARC_OPA                = 83,
-    LV_STYLE_ARC_IMG_SRC            = 84,
+    LV_STYLE_ARC_IMAGE_SRC            = 84,
 
     LV_STYLE_TEXT_COLOR             = 88,
     LV_STYLE_TEXT_OPA               = 89,
     LV_STYLE_TEXT_FONT              = 90,
 
-    LV_STYLE_TEXT_LETTER_SPACE      = 92,
-    LV_STYLE_TEXT_LINE_SPACE        = 93,
-    LV_STYLE_TEXT_DECOR             = 94,
-    LV_STYLE_TEXT_ALIGN             = 95,
+    LV_STYLE_TEXT_LETTER_SPACE      = 91,
+    LV_STYLE_TEXT_LINE_SPACE        = 92,
+    LV_STYLE_TEXT_DECOR             = 93,
+    LV_STYLE_TEXT_ALIGN             = 94,
 
-    LV_STYLE_OPA                    = 96,
-    LV_STYLE_OPA_LAYERED            = 97,
-    LV_STYLE_COLOR_FILTER_DSC       = 98,
-    LV_STYLE_COLOR_FILTER_OPA       = 99,
-    LV_STYLE_ANIM                   = 100,
-    LV_STYLE_ANIM_TIME              = 101,
-    LV_STYLE_ANIM_SPEED             = 102,
-    LV_STYLE_TRANSITION             = 103,
-    LV_STYLE_BLEND_MODE             = 104,
-    LV_STYLE_TRANSFORM_WIDTH        = 105,
-    LV_STYLE_TRANSFORM_HEIGHT       = 106,
-    LV_STYLE_TRANSLATE_X            = 107,
-    LV_STYLE_TRANSLATE_Y            = 108,
-    LV_STYLE_TRANSFORM_ZOOM         = 109,
-    LV_STYLE_TRANSFORM_ANGLE        = 110,
+    LV_STYLE_OPA                    = 95,
+    LV_STYLE_OPA_LAYERED            = 96,
+    LV_STYLE_COLOR_FILTER_DSC       = 97,
+    LV_STYLE_COLOR_FILTER_OPA       = 98,
+    LV_STYLE_ANIM                   = 99,
+    LV_STYLE_ANIM_DURATION          = 100,
+    LV_STYLE_TRANSITION             = 102,
+    LV_STYLE_BLEND_MODE             = 103,
+    LV_STYLE_TRANSFORM_WIDTH        = 104,
+    LV_STYLE_TRANSFORM_HEIGHT       = 105,
+    LV_STYLE_TRANSLATE_X            = 106,
+    LV_STYLE_TRANSLATE_Y            = 107,
+    LV_STYLE_TRANSFORM_SCALE_X      = 108,
+    LV_STYLE_TRANSFORM_SCALE_Y      = 109,
+    LV_STYLE_TRANSFORM_ROTATION     = 110,
     LV_STYLE_TRANSFORM_PIVOT_X      = 111,
     LV_STYLE_TRANSFORM_PIVOT_Y      = 112,
+    LV_STYLE_TRANSFORM_SKEW_X       = 113,
+    LV_STYLE_TRANSFORM_SKEW_Y       = 114,
+    LV_STYLE_BITMAP_MASK_SRC        = 115,
+    LV_STYLE_ROTARY_SENSITIVITY     = 116,
 
-#if LV_USE_FLEX
-    LV_STYLE_FLEX_FLOW              = 113,
-    LV_STYLE_FLEX_MAIN_PLACE        = 114,
-    LV_STYLE_FLEX_CROSS_PLACE       = 115,
-    LV_STYLE_FLEX_TRACK_PLACE       = 116,
-    LV_STYLE_FLEX_GROW              = 117,
-#endif
+    LV_STYLE_FLEX_FLOW              = 125,
+    LV_STYLE_FLEX_MAIN_PLACE        = 126,
+    LV_STYLE_FLEX_CROSS_PLACE       = 127,
+    LV_STYLE_FLEX_TRACK_PLACE       = 128,
+    LV_STYLE_FLEX_GROW              = 129,
 
-#if LV_USE_GRID
-    LV_STYLE_GRID_COLUMN_ALIGN      = 118,
-    LV_STYLE_GRID_ROW_ALIGN         = 119,
-    LV_STYLE_GRID_ROW_DSC_ARRAY     = 120,
-    LV_STYLE_GRID_COLUMN_DSC_ARRAY  = 121,
-    LV_STYLE_GRID_CELL_COLUMN_POS   = 122,
-    LV_STYLE_GRID_CELL_COLUMN_SPAN  = 123,
-    LV_STYLE_GRID_CELL_X_ALIGN      = 124,
-    LV_STYLE_GRID_CELL_ROW_POS      = 125,
-    LV_STYLE_GRID_CELL_ROW_SPAN     = 126,
-    LV_STYLE_GRID_CELL_Y_ALIGN      = 127,
-#endif
+    LV_STYLE_GRID_COLUMN_ALIGN      = 130,
+    LV_STYLE_GRID_ROW_ALIGN         = 131,
+    LV_STYLE_GRID_ROW_DSC_ARRAY     = 132,
+    LV_STYLE_GRID_COLUMN_DSC_ARRAY  = 133,
+    LV_STYLE_GRID_CELL_COLUMN_POS   = 134,
+    LV_STYLE_GRID_CELL_COLUMN_SPAN  = 135,
+    LV_STYLE_GRID_CELL_X_ALIGN      = 136,
+    LV_STYLE_GRID_CELL_ROW_POS      = 137,
+    LV_STYLE_GRID_CELL_ROW_SPAN     = 138,
+    LV_STYLE_GRID_CELL_Y_ALIGN      = 139,
 
-    _LV_STYLE_LAST_BUILT_IN_PROP     = 128,
-
+    _LV_STYLE_LAST_BUILT_IN_PROP     = 140,
 
     _LV_STYLE_NUM_BUILT_IN_PROPS     = _LV_STYLE_LAST_BUILT_IN_PROP + 1,
 
@@ -366,7 +383,6 @@ typedef _lv_style_res_t lv_style_res_t;
 #else
 typedef uint8_t lv_style_res_t;
 #endif /*DOXYGEN*/
-
 
 /**
  * Descriptor for style transitions
@@ -405,7 +421,6 @@ typedef struct {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-
 
 /**
  * Initialize a style
@@ -476,8 +491,8 @@ void lv_style_set_prop(lv_style_t * style, lv_style_prop_t prop, lv_style_value_
  * @param style pointer to a style
  * @param prop  the ID of a property
  * @param value pointer to a `lv_style_value_t` variable to store the value
- * @return LV_RES_INV: the property wasn't found in the style (`value` is unchanged)
- *         LV_RES_OK: the property was fond, and `value` is set accordingly
+ * @return LV_RESULT_INVALID: the property wasn't found in the style (`value` is unchanged)
+ *         LV_RESULT_OK: the property was fond, and `value` is set accordingly
  * @note For performance reasons there are no sanity check on `style`
  */
 lv_style_res_t lv_style_get_prop(const lv_style_t * style, lv_style_prop_t prop, lv_style_value_t * value);
@@ -510,8 +525,8 @@ lv_style_value_t lv_style_prop_get_default(lv_style_prop_t prop);
  * @param style pointer to a style
  * @param prop  the ID of a property
  * @param value pointer to a `lv_style_value_t` variable to store the value
- * @return LV_RES_INV: the property wasn't found in the style (`value` is unchanged)
- *         LV_RES_OK: the property was fond, and `value` is set accordingly
+ * @return LV_RESULT_INVALID: the property wasn't found in the style (`value` is unchanged)
+ *         LV_RESULT_OK: the property was fond, and `value` is set accordingly
  * @note For performance reasons there are no sanity check on `style`
  * @note This function is the same as ::lv_style_get_prop but inlined. Use it only on performance critical places
  */
@@ -571,16 +586,15 @@ static inline uint32_t _lv_style_get_prop_group(lv_style_prop_t prop)
  */
 uint8_t _lv_style_prop_lookup_flags(lv_style_prop_t prop);
 
-
 #include "lv_style_gen.h"
 
-static inline void lv_style_set_size(lv_style_t * style, lv_coord_t width, lv_coord_t height)
+static inline void lv_style_set_size(lv_style_t * style, int32_t width, int32_t height)
 {
     lv_style_set_width(style, width);
     lv_style_set_height(style, height);
 }
 
-static inline void lv_style_set_pad_all(lv_style_t * style, lv_coord_t value)
+static inline void lv_style_set_pad_all(lv_style_t * style, int32_t value)
 {
     lv_style_set_pad_left(style, value);
     lv_style_set_pad_right(style, value);
@@ -588,22 +602,28 @@ static inline void lv_style_set_pad_all(lv_style_t * style, lv_coord_t value)
     lv_style_set_pad_bottom(style, value);
 }
 
-static inline void lv_style_set_pad_hor(lv_style_t * style, lv_coord_t value)
+static inline void lv_style_set_pad_hor(lv_style_t * style, int32_t value)
 {
     lv_style_set_pad_left(style, value);
     lv_style_set_pad_right(style, value);
 }
 
-static inline void lv_style_set_pad_ver(lv_style_t * style, lv_coord_t value)
+static inline void lv_style_set_pad_ver(lv_style_t * style, int32_t value)
 {
     lv_style_set_pad_top(style, value);
     lv_style_set_pad_bottom(style, value);
 }
 
-static inline void lv_style_set_pad_gap(lv_style_t * style, lv_coord_t value)
+static inline void lv_style_set_pad_gap(lv_style_t * style, int32_t value)
 {
     lv_style_set_pad_row(style, value);
     lv_style_set_pad_column(style, value);
+}
+
+static inline void lv_style_set_transform_scale(lv_style_t * style, int32_t value)
+{
+    lv_style_set_transform_scale_x(style, value);
+    lv_style_set_transform_scale_y(style, value);
 }
 
 /**
@@ -625,7 +645,7 @@ static inline bool lv_style_prop_has_flag(lv_style_prop_t prop, uint8_t flag)
  *    GLOBAL VARIABLES
  *************************/
 
-extern const lv_style_prop_t lv_style_const_prop_id_inv;
+LV_ATTRIBUTE_EXTERN_DATA extern const lv_style_prop_t lv_style_const_prop_id_inv;
 
 /**********************
  *      MACROS

@@ -1,3 +1,5 @@
+.. _others:
+
 ======
 Others
 ======
@@ -10,6 +12,8 @@ Others
     gridnav
     file_explorer
     fragment
-    msg
+    observer
     imgfont
     ime_pinyin
+    obj_id
+    obj_property

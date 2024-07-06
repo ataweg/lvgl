@@ -13,8 +13,8 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
-#include <stdbool.h>
 #include "lv_conf_internal.h"
+#include "misc/lv_types.h"
 
 /*********************
  *      DEFINES
@@ -34,23 +34,15 @@ extern "C" {
  */
 void lv_init(void);
 
-
-#if LV_ENABLE_GLOBAL_CUSTOM || LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
-
 /**
  * Deinit the 'lv' library
- * Currently only implemented when not using custom allocators,
- * or using custom 'lv_global'.
  */
 void lv_deinit(void);
-
-#endif
 
 /**
  * Returns whether the 'lv' library is currently initialized
  */
 bool lv_is_initialized(void);
-
 
 /**********************
  *      MACROS

@@ -15,9 +15,7 @@ extern "C" {
  *********************/
 #include "../lv_conf_internal.h"
 
-#include <stdbool.h>
-
-#include "../draw/lv_img_cache.h"
+#include "../misc/lv_types.h"
 #include "../draw/lv_draw.h"
 #if LV_USE_DRAW_SW
 #include "../draw/sw/lv_draw_sw.h"
@@ -27,9 +25,10 @@ extern "C" {
 #include "../misc/lv_color_op.h"
 #include "../misc/lv_ll.h"
 #include "../misc/lv_log.h"
-#include "../misc/lv_profiler_builtin.h"
 #include "../misc/lv_style.h"
 #include "../misc/lv_timer.h"
+#include "../osal/lv_os.h"
+#include "../others/sysmon/lv_sysmon.h"
 #include "../stdlib/builtin/lv_tlsf.h"
 
 #if LV_USE_FONT_COMPRESSED
@@ -38,6 +37,8 @@ extern "C" {
 
 #include "../tick/lv_tick.h"
 #include "../layouts/lv_layout.h"
+
+#include "../misc/lv_types.h"
 
 /*********************
  *      DEFINES
@@ -48,13 +49,6 @@ extern "C" {
  *      TYPEDEFS
  **********************/
 
-struct _lv_disp_t;
-struct _lv_group_t;
-struct _my_theme_t;
-struct _lv_indev_t;
-struct _lv_event_t;
-struct _lv_obj_t;
-
 #if LV_USE_SPAN != 0
 struct _snippet_stack;
 #endif
@@ -63,25 +57,34 @@ struct _snippet_stack;
 struct _lv_freetype_context_t;
 #endif
 
+#if LV_USE_PROFILER && LV_USE_PROFILER_BUILTIN
+struct _lv_profiler_builtin_ctx_t;
+#endif
+
+#if LV_USE_NUTTX
+struct _lv_nuttx_ctx_t;
+#endif
+
 typedef struct _lv_global_t {
     bool inited;
+    bool deinit_in_progress;     /**< Can be used e.g. in the LV_EVENT_DELETE to deinit the drivers too */
 
     lv_ll_t disp_ll;
-    struct _lv_disp_t * disp_refresh;
-    struct _lv_disp_t * disp_default;
+    lv_display_t * disp_refresh;
+    lv_display_t * disp_default;
 
     lv_ll_t style_trans_ll;
     bool style_refresh;
     uint32_t style_custom_table_size;
-    uint16_t style_last_custom_prop_id;
+    uint32_t style_last_custom_prop_id;
     uint8_t * style_custom_prop_flag_lookup_table;
 
     lv_ll_t group_ll;
-    struct _lv_group_t * group_default;
+    lv_group_t * group_default;
 
     lv_ll_t indev_ll;
-    struct _lv_indev_t * indev_active;
-    struct _lv_obj_t * indev_obj_active;
+    lv_indev_t * indev_active;
+    lv_obj_t * indev_obj_active;
 
     uint32_t layout_count;
     lv_layout_dsc_t * layout_list;
@@ -89,9 +92,8 @@ typedef struct _lv_global_t {
 
     uint32_t memory_zero;
     uint32_t math_rand_seed;
-    lv_area_transform_cache_t area_trans_cache;
 
-    struct _lv_event_t * event_header;
+    lv_event_t * event_header;
     uint32_t event_last_register_id;
 
     lv_timer_state_t timer_state;
@@ -99,15 +101,14 @@ typedef struct _lv_global_t {
     lv_tick_state_t tick_state;
 
     lv_draw_buf_handlers_t draw_buf_handlers;
+    lv_draw_buf_handlers_t font_draw_buf_handlers;
+    lv_draw_buf_handlers_t image_cache_draw_buf_handlers;  /**< Ensure that all assigned draw buffers
+                                                            * can be managed by image cache. */
 
     lv_ll_t img_decoder_ll;
-    lv_img_cache_manager_t img_cache_mgr;
-#if LV_IMG_CACHE_DEF_SIZE
-    uint16_t img_cache_entry_cnt;
-    _lv_img_cache_entry_t * img_cache_array;
-#else
-    _lv_img_cache_entry_t img_cache_single;
-#endif
+
+    lv_cache_t * img_cache;
+    lv_cache_t * img_header_cache;
 
     lv_draw_global_info_t draw_info;
 #if defined(LV_DRAW_SW_SHADOW_CACHE_SIZE) && LV_DRAW_SW_SHADOW_CACHE_SIZE > 0
@@ -121,20 +122,20 @@ typedef struct _lv_global_t {
     lv_log_print_g_cb_t custom_log_print_cb;
 #endif
 
-#if LV_LOG_USE_TIMESTAMP
+#if LV_USE_LOG && LV_LOG_USE_TIMESTAMP
     uint32_t log_last_log_time;
 #endif
 
-#if LV_USE_THEME_BASIC
-    struct _my_theme_t * theme_basic;
+#if LV_USE_THEME_SIMPLE
+    void * theme_simple;
 #endif
 
 #if LV_USE_THEME_DEFAULT
-    struct _my_theme_t * theme_default;
+    void * theme_default;
 #endif
 
 #if LV_USE_THEME_MONO
-    struct _my_theme_t * theme_mono;
+    void * theme_mono;
 #endif
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
@@ -157,8 +158,24 @@ typedef struct _lv_global_t {
     lv_fs_drv_t win32_fs_drv;
 #endif
 
+#if LV_USE_FS_LITTLEFS
+    lv_fs_drv_t littlefs_fs_drv;
+#endif
+
+#if LV_USE_FS_ARDUINO_ESP_LITTLEFS
+    lv_fs_drv_t arduino_esp_littlefs_fs_drv;
+#endif
+
+#if LV_USE_FS_ARDUINO_SD
+    lv_fs_drv_t arduino_sd_fs_drv;
+#endif
+
 #if LV_USE_FREETYPE
     struct _lv_freetype_context_t * ft_context;
+#endif
+
+#if LV_USE_TINY_TTF
+    lv_cache_t * tiny_ttf_cache;
 #endif
 
 #if LV_USE_FONT_COMPRESSED
@@ -170,28 +187,36 @@ typedef struct _lv_global_t {
 #endif
 
 #if LV_USE_PROFILER && LV_USE_PROFILER_BUILTIN
-    lv_profiler_builtin_ctx_t profiler_context;
-#endif
-
-#if LV_USE_MSG
-    bool msg_restart_notify;
-    unsigned int msg_recursion_counter;
-    lv_ll_t msg_subs_ll;
+    struct _lv_profiler_builtin_ctx_t * profiler_context;
 #endif
 
 #if LV_USE_FILE_EXPLORER != 0
-    lv_style_t fe_list_btn_style;
+    lv_style_t fe_list_button_style;
 #endif
 
-#if LV_USE_SYSMON && LV_USE_PERF_MONITOR
-    void * sysmon_perf_info;
+#if LV_USE_MEM_MONITOR
+    lv_sysmon_backend_data_t sysmon_mem;
 #endif
 
 #if LV_USE_IME_PINYIN != 0
-    uint16_t ime_cand_len;
+    size_t ime_cand_len;
 #endif
-} lv_global_t;
 
+#if LV_USE_OBJ_ID_BUILTIN
+    void * objid_array;
+    uint32_t objid_count;
+#endif
+
+#if LV_USE_NUTTX
+    struct _lv_nuttx_ctx_t * nuttx_ctx;
+#endif
+
+#if LV_USE_OS != LV_OS_NONE
+    lv_mutex_t lv_general_mutex;
+#endif
+
+    void * user_data;
+} lv_global_t;
 
 /**********************
  *      MACROS
@@ -205,7 +230,7 @@ typedef struct _lv_global_t {
 #endif
 #define LV_GLOBAL_DEFAULT() LV_GLOBAL_CUSTOM()
 #else
-extern lv_global_t lv_global;
+LV_ATTRIBUTE_EXTERN_DATA extern lv_global_t lv_global;
 #define LV_GLOBAL_DEFAULT() (&lv_global)
 #endif
 

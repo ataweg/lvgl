@@ -50,6 +50,14 @@ extern "C" {
         }                                                                \
     } while(0)
 
+#define LV_ASSERT_FORMAT_MSG(expr, format, ...)                                         \
+    do {                                                                                \
+        if(!(expr)) {                                                                   \
+            LV_LOG_ERROR("Asserted at expression: %s " format , #expr, __VA_ARGS__);    \
+            LV_ASSERT_HANDLER                                                           \
+        }                                                                               \
+    } while(0)
+
 /*-----------------
  * ASSERTS
  *-----------------*/
@@ -67,7 +75,7 @@ extern "C" {
 #endif
 
 #if LV_USE_ASSERT_MEM_INTEGRITY
-#   define LV_ASSERT_MEM_INTEGRITY() LV_ASSERT_MSG(lv_mem_test() == LV_RES_OK, "Memory integrity error");
+#   define LV_ASSERT_MEM_INTEGRITY() LV_ASSERT_MSG(lv_mem_test() == LV_RESULT_OK, "Memory integrity error");
 #else
 #   define LV_ASSERT_MEM_INTEGRITY()
 #endif

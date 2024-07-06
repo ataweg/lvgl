@@ -29,6 +29,7 @@
 /**********************
  *      MACROS
  **********************/
+
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
@@ -59,20 +60,34 @@ void lv_mem_remove_pool(lv_mem_pool_t pool)
     return;
 }
 
-
 void * lv_malloc_core(size_t size)
 {
+#if MICROPY_MALLOC_USES_ALLOCATED_SIZE
+    return gc_alloc(size, true);
+#else
     return m_malloc(size);
+#endif
 }
 
 void * lv_realloc_core(void * p, size_t new_size)
 {
+
+#if MICROPY_MALLOC_USES_ALLOCATED_SIZE
+    return gc_realloc(p, new_size, true);
+#else
     return m_realloc(p, new_size);
+#endif
 }
 
 void lv_free_core(void * p)
 {
+
+#if MICROPY_MALLOC_USES_ALLOCATED_SIZE
+    gc_free(p);
+
+#else
     m_free(p);
+#endif
 }
 
 void lv_mem_monitor_core(lv_mem_monitor_t * mon_p)
@@ -82,15 +97,14 @@ void lv_mem_monitor_core(lv_mem_monitor_t * mon_p)
     return;
 }
 
-
-lv_res_t lv_mem_test_core(void)
+lv_result_t lv_mem_test_core(void)
 {
     /*Not supported*/
-    return LV_RES_OK;
+    return LV_RESULT_OK;
 }
 
 /**********************
  *   STATIC FUNCTIONS
  **********************/
 
-#endif /*LV_USE_BUILTIN_MALLOC*/
+#endif /*LV_STDLIB_MICROPYTHON*/

@@ -1,3 +1,5 @@
+.. _3rd_party_libraries:
+
 ===================
 3rd party libraries
 ===================
@@ -8,8 +10,10 @@
 
     fs
     bmp
-    sjpg
-    png
+    tjpgd
+    libjpeg_turbo
+    lodepng
+    libpng
     gif
     freetype
     tiny_ttf
@@ -17,3 +21,7 @@
     barcode
     rlottie
     ffmpeg
+    rle
+    arduino_esp_littlefs
+    arduino_sd
+    lfs

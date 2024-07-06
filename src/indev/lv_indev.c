@@ -8,7 +8,7 @@
  ********************/
 #include "lv_indev_private.h"
 #include "lv_indev_scroll.h"
-#include "../disp/lv_disp_private.h"
+#include "../display/lv_display_private.h"
 #include "../core/lv_global.h"
 #include "../core/lv_obj.h"
 #include "../core/lv_group.h"
@@ -30,13 +30,12 @@
 #define LV_INDEV_DEF_SCROLL_THROW         10
 
 /*Long press time in milliseconds.
- *Time to send `LV_EVENT_LONG_PRESSSED`)*/
+ *Time to send `LV_EVENT_LONG_PRESSED`)*/
 #define LV_INDEV_DEF_LONG_PRESS_TIME      400
 
 /*Repeated trigger period in long press [ms]
  *Time between `LV_EVENT_LONG_PRESSED_REPEAT*/
 #define LV_INDEV_DEF_LONG_PRESS_REP_TIME  100
-
 
 /*Gesture threshold in pixels*/
 #define LV_INDEV_DEF_GESTURE_LIMIT        50
@@ -44,8 +43,11 @@
 /*Gesture min velocity at release before swipe (pixels)*/
 #define LV_INDEV_DEF_GESTURE_MIN_VELOCITY 3
 
+/**< Rotary diff count will be multiplied by this and divided by 256 */
+#define LV_INDEV_DEF_ROTARY_SENSITIVITY         256
+
 #if LV_INDEV_DEF_SCROLL_THROW <= 0
-    #warning "LV_INDEV_DRAG_THROW must be greater than 0"
+    #warning "LV_INDEV_DEF_SCROLL_THROW must be greater than 0"
 #endif
 
 #define indev_act LV_GLOBAL_DEFAULT()->indev_active
@@ -65,12 +67,27 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data);
 static void indev_button_proc(lv_indev_t * i, lv_indev_data_t * data);
 static void indev_proc_press(lv_indev_t * indev);
 static void indev_proc_release(lv_indev_t * indev);
-static lv_obj_t * pointer_search_obj(lv_disp_t * disp, lv_point_t * p);
+static void indev_proc_pointer_diff(lv_indev_t * indev);
+static lv_obj_t * pointer_search_obj(lv_display_t * disp, lv_point_t * p);
 static void indev_proc_reset_query_handler(lv_indev_t * indev);
 static void indev_click_focus(lv_indev_t * indev);
 static void indev_gesture(lv_indev_t * indev);
 static bool indev_reset_check(lv_indev_t * indev);
 static void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data);
+static void indev_reset_core(lv_indev_t * indev, lv_obj_t * obj);
+static lv_result_t send_event(lv_event_code_t code, void * param);
+
+static void indev_scroll_throw_anim_start(lv_indev_t * indev);
+static void indev_scroll_throw_anim_cb(void * var, int32_t v);
+static void indev_scroll_throw_anim_completed_cb(lv_anim_t * anim);
+static inline void indev_scroll_throw_anim_reset(lv_indev_t * indev)
+{
+    if(indev) {
+        indev->pointer.scroll_throw_vect.x = 0;
+        indev->pointer.scroll_throw_vect.y = 0;
+        indev->scroll_throw_anim = NULL;
+    }
+}
 
 /**********************
  *  STATIC VARIABLES
@@ -79,10 +96,10 @@ static void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data);
 /**********************
  *      MACROS
  **********************/
-#if LV_LOG_TRACE_INDEV
-    #define INDEV_TRACE(...) LV_LOG_TRACE(__VA_ARGS__)
+#if LV_USE_LOG && LV_LOG_TRACE_INDEV
+    #define LV_TRACE_INDEV(...) LV_LOG_TRACE(__VA_ARGS__)
 #else
-    #define INDEV_TRACE(...)
+    #define LV_TRACE_INDEV(...)
 #endif
 
 /**********************
@@ -91,38 +108,46 @@ static void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data);
 
 lv_indev_t * lv_indev_create(void)
 {
-    lv_disp_t * disp = lv_disp_get_default();
+    lv_display_t * disp = lv_display_get_default();
     if(disp == NULL) {
         LV_LOG_WARN("no display was created so far");
     }
 
     lv_indev_t * indev = _lv_ll_ins_head(indev_ll_head);
     LV_ASSERT_MALLOC(indev);
-    if(!indev) {
+    if(indev == NULL) {
         return NULL;
     }
 
     lv_memzero(indev, sizeof(lv_indev_t));
     indev->reset_query  = 1;
+    indev->enabled = 1;
+
     indev->read_timer = lv_timer_create(lv_indev_read_timer_cb, LV_DEF_REFR_PERIOD, indev);
 
-    indev->disp                 = lv_disp_get_default();
+    indev->disp                 = lv_display_get_default();
     indev->type                 = LV_INDEV_TYPE_NONE;
+    indev->mode                 = LV_INDEV_MODE_TIMER;
     indev->scroll_limit         = LV_INDEV_DEF_SCROLL_LIMIT;
     indev->scroll_throw         = LV_INDEV_DEF_SCROLL_THROW;
     indev->long_press_time      = LV_INDEV_DEF_LONG_PRESS_TIME;
     indev->long_press_repeat_time  = LV_INDEV_DEF_LONG_PRESS_REP_TIME;
     indev->gesture_limit        = LV_INDEV_DEF_GESTURE_LIMIT;
     indev->gesture_min_velocity = LV_INDEV_DEF_GESTURE_MIN_VELOCITY;
-
+    indev->rotary_sensitivity  = LV_INDEV_DEF_ROTARY_SENSITIVITY;
     return indev;
 }
 
 void lv_indev_delete(lv_indev_t * indev)
 {
     LV_ASSERT_NULL(indev);
+
+    lv_indev_send_event(indev, LV_EVENT_DELETE, NULL);
+    lv_event_remove_all(&(indev->event_list));
+
     /*Clean up the read timer first*/
-    if(indev->read_timer) lv_timer_del(indev->read_timer);
+    if(indev->read_timer) lv_timer_delete(indev->read_timer);
+
     /*Remove the input device from the list*/
     _lv_ll_remove(indev_ll_head, indev);
     /*Free the memory of the input device*/
@@ -158,7 +183,7 @@ void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data)
     }
 
     if(indev->read_cb) {
-        INDEV_TRACE("calling indev_read_cb");
+        LV_TRACE_INDEV("calling indev_read_cb");
         indev->read_cb(indev, data);
     }
     else {
@@ -172,22 +197,25 @@ void lv_indev_read_timer_cb(lv_timer_t * timer)
     lv_indev_read(timer->user_data);
 }
 
-void lv_indev_read(lv_indev_t * indev_p)
+void lv_indev_read(lv_indev_t * indev)
 {
-    if(!indev_p) return;
+    if(indev == NULL) return;
 
-    INDEV_TRACE("begin");
+    LV_TRACE_INDEV("begin");
 
-    indev_act = indev_p;
+    indev_act = indev;
 
     /*Read and process all indevs*/
-    if(indev_p->disp == NULL) return; /*Not assigned to any displays*/
+    if(indev->disp == NULL) return; /*Not assigned to any displays*/
 
     /*Handle reset query before processing the point*/
-    indev_proc_reset_query_handler(indev_p);
+    indev_proc_reset_query_handler(indev);
 
-    if(indev_p->disabled ||
-       indev_p->disp->prev_scr != NULL) return; /*Input disabled or screen animation active*/
+    if(indev->enabled == 0) return;
+    if(indev->disp->prev_scr != NULL) {
+        LV_TRACE_INDEV("input blocked while screen animation active");
+        return;
+    }
 
     LV_PROFILER_BEGIN;
 
@@ -196,64 +224,62 @@ void lv_indev_read(lv_indev_t * indev_p)
 
     do {
         /*Read the data*/
-        indev_read_core(indev_p, &data);
-        continue_reading = data.continue_reading;
+        indev_read_core(indev, &data);
+        continue_reading = indev->mode != LV_INDEV_MODE_EVENT && data.continue_reading;
 
         /*The active object might be deleted even in the read function*/
-        indev_proc_reset_query_handler(indev_p);
+        indev_proc_reset_query_handler(indev);
         indev_obj_act = NULL;
 
-        indev_p->state = data.state;
+        indev->state = data.state;
 
         /*Save the last activity time*/
-        if(indev_p->state == LV_INDEV_STATE_PRESSED) {
-            indev_p->disp->last_activity_time = lv_tick_get();
+        if(indev->state == LV_INDEV_STATE_PRESSED) {
+            indev->disp->last_activity_time = lv_tick_get();
         }
-        else if(indev_p->type == LV_INDEV_TYPE_ENCODER && data.enc_diff) {
-            indev_p->disp->last_activity_time = lv_tick_get();
+        else if(indev->type == LV_INDEV_TYPE_ENCODER && data.enc_diff) {
+            indev->disp->last_activity_time = lv_tick_get();
         }
 
-        if(indev_p->type == LV_INDEV_TYPE_POINTER) {
-            indev_pointer_proc(indev_p, &data);
+        if(indev->type == LV_INDEV_TYPE_POINTER) {
+            indev_pointer_proc(indev, &data);
         }
-        else if(indev_p->type == LV_INDEV_TYPE_KEYPAD) {
-            indev_keypad_proc(indev_p, &data);
+        else if(indev->type == LV_INDEV_TYPE_KEYPAD) {
+            indev_keypad_proc(indev, &data);
         }
-        else if(indev_p->type == LV_INDEV_TYPE_ENCODER) {
-            indev_encoder_proc(indev_p, &data);
+        else if(indev->type == LV_INDEV_TYPE_ENCODER) {
+            indev_encoder_proc(indev, &data);
         }
-        else if(indev_p->type == LV_INDEV_TYPE_BUTTON) {
-            indev_button_proc(indev_p, &data);
+        else if(indev->type == LV_INDEV_TYPE_BUTTON) {
+            indev_button_proc(indev, &data);
         }
         /*Handle reset query if it happened in during processing*/
-        indev_proc_reset_query_handler(indev_p);
+        indev_proc_reset_query_handler(indev);
     } while(continue_reading);
 
     /*End of indev processing, so no act indev*/
     indev_act     = NULL;
     indev_obj_act = NULL;
 
-    INDEV_TRACE("finished");
+    LV_TRACE_INDEV("finished");
     LV_PROFILER_END;
 }
 
-void lv_indev_enable(lv_indev_t * indev, bool en)
+void lv_indev_enable(lv_indev_t * indev, bool enable)
 {
-    uint8_t enable = en ? 0 : 1;
-
     if(indev) {
-        indev->disabled = enable;
+        indev->enabled = (uint8_t) enable;
     }
     else {
         lv_indev_t * i = lv_indev_get_next(NULL);
         while(i) {
-            i->disabled = enable;
+            i->enabled = (uint8_t) enable;
             i = lv_indev_get_next(i);
         }
     }
 }
 
-lv_indev_t * lv_indev_get_act(void)
+lv_indev_t * lv_indev_active(void)
 {
     return indev_act;
 }
@@ -266,7 +292,7 @@ void lv_indev_set_type(lv_indev_t * indev, lv_indev_type_t indev_type)
     indev->reset_query = 1;
 }
 
-void lv_indev_set_read_cb(lv_indev_t * indev,  lv_indev_read_cb_t read_cb)
+void lv_indev_set_read_cb(lv_indev_t * indev, lv_indev_read_cb_t read_cb)
 {
     if(indev == NULL) return;
 
@@ -285,6 +311,15 @@ void lv_indev_set_driver_data(lv_indev_t * indev, void * driver_data)
     indev->driver_data = driver_data;
 }
 
+lv_indev_read_cb_t lv_indev_get_read_cb(lv_indev_t * indev)
+{
+    if(indev == NULL) {
+        LV_LOG_WARN("lv_indev_get_read_cb: indev was NULL");
+        return NULL;
+    }
+
+    return indev->read_cb;
+}
 
 lv_indev_type_t lv_indev_get_type(const lv_indev_t * indev)
 {
@@ -307,14 +342,14 @@ lv_group_t * lv_indev_get_group(const lv_indev_t * indev)
     return indev->group;
 }
 
-lv_disp_t * lv_indev_get_disp(const lv_indev_t * indev)
+lv_display_t * lv_indev_get_display(const lv_indev_t * indev)
 {
     if(indev == NULL) return NULL;
 
     return indev->disp;
 }
 
-void lv_indev_set_disp(lv_indev_t * indev, lv_disp_t * disp)
+void lv_indev_set_display(lv_indev_t * indev, lv_display_t * disp)
 {
     if(indev == NULL) return;
 
@@ -337,35 +372,12 @@ void * lv_indev_get_driver_data(const lv_indev_t * indev)
 void lv_indev_reset(lv_indev_t * indev, lv_obj_t * obj)
 {
     if(indev) {
-        indev->reset_query = 1;
-        if(indev_act == indev) indev_obj_act = NULL;
-        if(indev->type == LV_INDEV_TYPE_POINTER || indev->type == LV_INDEV_TYPE_KEYPAD) {
-            if(obj == NULL || indev->pointer.last_pressed == obj) {
-                indev->pointer.last_pressed = NULL;
-            }
-            if(obj == NULL || indev->pointer.act_obj == obj) {
-                indev->pointer.act_obj = NULL;
-            }
-            if(obj == NULL || indev->pointer.last_obj == obj) {
-                indev->pointer.last_obj = NULL;
-            }
-        }
+        indev_reset_core(indev, obj);
     }
     else {
         lv_indev_t * i = lv_indev_get_next(NULL);
         while(i) {
-            i->reset_query = 1;
-            if(i->type == LV_INDEV_TYPE_POINTER || i->type == LV_INDEV_TYPE_KEYPAD) {
-                if(obj == NULL || i->pointer.last_pressed == obj) {
-                    i->pointer.last_pressed = NULL;
-                }
-                if(obj == NULL || i->pointer.act_obj == obj) {
-                    i->pointer.act_obj = NULL;
-                }
-                if(obj == NULL || i->pointer.last_obj == obj) {
-                    i->pointer.last_obj = NULL;
-                }
-            }
+            indev_reset_core(i, obj);
             i = lv_indev_get_next(i);
         }
         indev_obj_act = NULL;
@@ -384,22 +396,22 @@ void lv_indev_set_cursor(lv_indev_t * indev, lv_obj_t * cur_obj)
     if(indev->type != LV_INDEV_TYPE_POINTER) return;
 
     indev->cursor = cur_obj;
-    lv_obj_set_parent(indev->cursor, lv_disp_get_layer_sys(indev->disp));
+    lv_obj_set_parent(indev->cursor, lv_display_get_layer_sys(indev->disp));
     lv_obj_set_pos(indev->cursor, indev->pointer.act_point.x, indev->pointer.act_point.y);
-    lv_obj_clear_flag(indev->cursor, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(indev->cursor, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(indev->cursor, LV_OBJ_FLAG_IGNORE_LAYOUT | LV_OBJ_FLAG_FLOATING);
 }
 
 void lv_indev_set_group(lv_indev_t * indev, lv_group_t * group)
 {
-    if(indev->type == LV_INDEV_TYPE_KEYPAD || indev->type == LV_INDEV_TYPE_ENCODER) {
+    if(indev && (indev->type == LV_INDEV_TYPE_KEYPAD || indev->type == LV_INDEV_TYPE_ENCODER)) {
         indev->group = group;
     }
 }
 
 void lv_indev_set_button_points(lv_indev_t * indev, const lv_point_t points[])
 {
-    if(indev->type == LV_INDEV_TYPE_BUTTON) {
+    if(indev && indev->type == LV_INDEV_TYPE_BUTTON) {
         indev->btn_points = points;
     }
 }
@@ -409,9 +421,8 @@ void lv_indev_get_point(const lv_indev_t * indev, lv_point_t * point)
     if(indev == NULL) {
         point->x = 0;
         point->y = 0;
-        return;
     }
-    if(indev->type != LV_INDEV_TYPE_POINTER && indev->type != LV_INDEV_TYPE_BUTTON) {
+    else if(indev->type != LV_INDEV_TYPE_POINTER && indev->type != LV_INDEV_TYPE_BUTTON) {
         point->x = -1;
         point->y = -1;
     }
@@ -428,10 +439,12 @@ lv_dir_t lv_indev_get_gesture_dir(const lv_indev_t * indev)
 
 uint32_t lv_indev_get_key(const lv_indev_t * indev)
 {
-    if(indev->type != LV_INDEV_TYPE_KEYPAD)
-        return 0;
-    else
-        return indev->keypad.last_key;
+    uint32_t key = 0;
+
+    if(indev && indev->type == LV_INDEV_TYPE_KEYPAD)
+        key = indev->keypad.last_key;
+
+    return key;
 }
 
 lv_dir_t lv_indev_get_scroll_dir(const lv_indev_t * indev)
@@ -467,14 +480,14 @@ void lv_indev_wait_release(lv_indev_t * indev)
     indev->wait_until_release = 1;
 }
 
-lv_obj_t * lv_indev_get_obj_act(void)
+lv_obj_t * lv_indev_get_active_obj(void)
 {
     return indev_obj_act;
 }
 
 lv_timer_t * lv_indev_get_read_timer(lv_indev_t * indev)
 {
-    if(!indev) {
+    if(indev == NULL) {
         LV_LOG_WARN("lv_indev_get_read_timer: indev was NULL");
         return NULL;
     }
@@ -482,6 +495,29 @@ lv_timer_t * lv_indev_get_read_timer(lv_indev_t * indev)
     return indev->read_timer;
 }
 
+lv_indev_mode_t lv_indev_get_mode(lv_indev_t * indev)
+{
+    if(indev) return indev->mode;
+    return LV_INDEV_MODE_NONE;
+}
+
+void lv_indev_set_mode(lv_indev_t * indev, lv_indev_mode_t mode)
+{
+    if(indev == NULL || indev->mode == mode)
+        return;
+
+    indev->mode = mode;
+    if(indev->read_timer) {
+        if(mode == LV_INDEV_MODE_EVENT) {
+            lv_timer_pause(indev->read_timer);
+        }
+        else if(mode == LV_INDEV_MODE_TIMER) {
+            /* use default timer mode*/
+            lv_timer_set_cb(indev->read_timer, lv_indev_read_timer_cb);
+            lv_timer_resume(indev->read_timer);
+        }
+    }
+}
 
 lv_obj_t * lv_indev_search_obj(lv_obj_t * obj, lv_point_t * point)
 {
@@ -491,19 +527,19 @@ lv_obj_t * lv_indev_search_obj(lv_obj_t * obj, lv_point_t * point)
     if(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return NULL;
 
     lv_point_t p_trans = *point;
-    lv_obj_transform_point(obj, &p_trans, false, true);
+    lv_obj_transform_point(obj, &p_trans, LV_OBJ_POINT_TRANSFORM_FLAG_INVERSE);
 
     bool hit_test_ok = lv_obj_hit_test(obj, &p_trans);
 
     /*If the point is on this object check its children too*/
     lv_area_t obj_coords = obj->coords;
     if(lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
-        lv_coord_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
+        int32_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
         lv_area_increase(&obj_coords, ext_draw_size, ext_draw_size);
     }
     if(_lv_area_is_point_on(&obj_coords, &p_trans, 0)) {
         int32_t i;
-        uint32_t child_cnt = lv_obj_get_child_cnt(obj);
+        uint32_t child_cnt = lv_obj_get_child_count(obj);
 
         /*If a child matches use it*/
         for(i = child_cnt - 1; i >= 0; i--) {
@@ -519,6 +555,71 @@ lv_obj_t * lv_indev_search_obj(lv_obj_t * obj, lv_point_t * point)
     else return NULL;
 }
 
+void lv_indev_add_event_cb(lv_indev_t * indev, lv_event_cb_t event_cb, lv_event_code_t filter, void * user_data)
+{
+    LV_ASSERT_NULL(indev);
+
+    lv_event_add(&indev->event_list, event_cb, filter, user_data);
+}
+
+uint32_t lv_indev_get_event_count(lv_indev_t * indev)
+{
+    LV_ASSERT_NULL(indev);
+    return lv_event_get_count(&indev->event_list);
+}
+
+lv_event_dsc_t * lv_indev_get_event_dsc(lv_indev_t * indev, uint32_t index)
+{
+    LV_ASSERT_NULL(indev);
+    return lv_event_get_dsc(&indev->event_list, index);
+
+}
+
+bool lv_indev_remove_event(lv_indev_t * indev, uint32_t index)
+{
+    LV_ASSERT_NULL(indev);
+
+    return lv_event_remove(&indev->event_list, index);
+}
+
+uint32_t lv_indev_remove_event_cb_with_user_data(lv_indev_t * indev, lv_event_cb_t event_cb, void * user_data)
+{
+    LV_ASSERT_NULL(indev);
+
+    uint32_t event_cnt = lv_indev_get_event_count(indev);
+    uint32_t removed_count = 0;
+    int32_t i;
+
+    for(i = event_cnt - 1; i >= 0; i--) {
+        lv_event_dsc_t * dsc = lv_indev_get_event_dsc(indev, i);
+        if(dsc && dsc->cb == event_cb && dsc->user_data == user_data) {
+            lv_indev_remove_event(indev, i);
+            removed_count ++;
+        }
+    }
+
+    return removed_count;
+}
+
+lv_result_t lv_indev_send_event(lv_indev_t * indev, lv_event_code_t code, void * param)
+{
+
+    lv_event_t e;
+    lv_memzero(&e, sizeof(e));
+    e.code = code;
+    e.current_target = indev;
+    e.original_target = indev;
+    e.param = param;
+    lv_result_t res;
+    res = lv_event_send(&indev->event_list, &e, true);
+    if(res != LV_RESULT_OK) return res;
+
+    res = lv_event_send(&indev->event_list, &e, false);
+    if(res != LV_RESULT_OK) return res;
+
+    return res;
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
@@ -530,17 +631,17 @@ lv_obj_t * lv_indev_search_obj(lv_obj_t * obj, lv_point_t * point)
  */
 static void indev_pointer_proc(lv_indev_t * i, lv_indev_data_t * data)
 {
-    lv_disp_t * disp = i->disp;
+    lv_display_t * disp = i->disp;
     /*Save the raw points so they can be used again in indev_read_core*/
     i->pointer.last_raw_point.x = data->point.x;
     i->pointer.last_raw_point.y = data->point.y;
 
-    if(disp->rotation == LV_DISP_ROTATION_180 || disp->rotation == LV_DISP_ROTATION_270) {
+    if(disp->rotation == LV_DISPLAY_ROTATION_180 || disp->rotation == LV_DISPLAY_ROTATION_270) {
         data->point.x = disp->hor_res - data->point.x - 1;
         data->point.y = disp->ver_res - data->point.y - 1;
     }
-    if(disp->rotation == LV_DISP_ROTATION_90 || disp->rotation == LV_DISP_ROTATION_270) {
-        lv_coord_t tmp = data->point.y;
+    if(disp->rotation == LV_DISPLAY_ROTATION_90 || disp->rotation == LV_DISPLAY_ROTATION_270) {
+        int32_t tmp = data->point.y;
         data->point.y = data->point.x;
         data->point.x = disp->ver_res - tmp - 1;
     }
@@ -549,13 +650,13 @@ static void indev_pointer_proc(lv_indev_t * i, lv_indev_data_t * data)
     if(data->point.x < 0) {
         LV_LOG_WARN("X is %d which is smaller than zero", (int)data->point.x);
     }
-    if(data->point.x >= lv_disp_get_hor_res(i->disp)) {
+    if(data->point.x >= lv_display_get_horizontal_resolution(i->disp)) {
         LV_LOG_WARN("X is %d which is greater than hor. res", (int)data->point.x);
     }
     if(data->point.y < 0) {
         LV_LOG_WARN("Y is %d which is smaller than zero", (int)data->point.y);
     }
-    if(data->point.y >= lv_disp_get_ver_res(i->disp)) {
+    if(data->point.y >= lv_display_get_vertical_resolution(i->disp)) {
         LV_LOG_WARN("Y is %d which is greater than ver. res", (int)data->point.y);
     }
 
@@ -567,6 +668,10 @@ static void indev_pointer_proc(lv_indev_t * i, lv_indev_data_t * data)
 
     i->pointer.act_point.x = data->point.x;
     i->pointer.act_point.y = data->point.y;
+    i->pointer.diff = data->enc_diff;
+
+    /*Process the diff first as scrolling will be processed in indev_proc_release*/
+    indev_proc_pointer_diff(i);
 
     if(i->state == LV_INDEV_STATE_PRESSED) {
         indev_proc_press(i);
@@ -595,23 +700,20 @@ static void indev_keypad_proc(lv_indev_t * i, lv_indev_data_t * data)
         i->keypad.last_state = LV_INDEV_STATE_RELEASED; /*To skip the processing of release*/
     }
 
+    /*Save the last key. *It must be done here else `lv_indev_get_key` will return the last key in events*/
+    uint32_t prev_key = i->keypad.last_key;
+    i->keypad.last_key = data->key;
+
     lv_group_t * g = i->group;
     if(g == NULL) return;
 
     indev_obj_act = lv_group_get_focused(g);
     if(indev_obj_act == NULL) return;
 
-    bool dis = lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
-
-    /*Save the last key to compare it with the current latter on RELEASE*/
-    uint32_t prev_key = i->keypad.last_key;
-
-    /*Save the last key.
-     *It must be done here else `lv_indev_get_key` will return the last key in events*/
-    i->keypad.last_key = data->key;
+    const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
 
     /*Save the previous state so we can detect state changes below and also set the last state now
-     *so if any event handler on the way returns `LV_RES_INV` the last state is remembered
+     *so if any event handler on the way returns `LV_RESULT_INVALID` the last state is remembered
      *for the next time*/
     uint32_t prev_state             = i->keypad.last_state;
     i->keypad.last_state = data->state;
@@ -633,23 +735,22 @@ static void indev_keypad_proc(lv_indev_t * i, lv_indev_data_t * data)
             lv_group_focus_prev(g);
             if(indev_reset_check(i)) return;
         }
-        else if(!dis) {
+        else if(is_enabled) {
             /*Simulate a press on the object if ENTER was pressed*/
             if(data->key == LV_KEY_ENTER) {
                 /*Send the ENTER as a normal KEY*/
                 lv_group_send_data(g, LV_KEY_ENTER);
                 if(indev_reset_check(i)) return;
 
-                if(!dis) lv_obj_send_event(indev_obj_act, LV_EVENT_PRESSED, indev_act);
-                if(indev_reset_check(i)) return;
+                if(send_event(LV_EVENT_PRESSED, indev_act) == LV_RESULT_INVALID) return;
+
             }
             else if(data->key == LV_KEY_ESC) {
                 /*Send the ESC as a normal KEY*/
                 lv_group_send_data(g, LV_KEY_ESC);
                 if(indev_reset_check(i)) return;
 
-                lv_obj_send_event(indev_obj_act, LV_EVENT_CANCEL, indev_act);
-                if(indev_reset_check(i)) return;
+                if(send_event(LV_EVENT_CANCEL, indev_act) == LV_RESULT_INVALID) return;
             }
             /*Just send other keys to the object (e.g. 'A' or `LV_GROUP_KEY_RIGHT`)*/
             else {
@@ -659,11 +760,10 @@ static void indev_keypad_proc(lv_indev_t * i, lv_indev_data_t * data)
         }
     }
     /*Pressing*/
-    else if(!dis && data->state == LV_INDEV_STATE_PRESSED && prev_state == LV_INDEV_STATE_PRESSED) {
+    else if(is_enabled && data->state == LV_INDEV_STATE_PRESSED && prev_state == LV_INDEV_STATE_PRESSED) {
 
         if(data->key == LV_KEY_ENTER) {
-            lv_obj_send_event(indev_obj_act, LV_EVENT_PRESSING, indev_act);
-            if(indev_reset_check(i)) return;
+            if(send_event(LV_EVENT_PRESSING, indev_act) == LV_RESULT_INVALID) return;
         }
 
         /*Long press time has elapsed?*/
@@ -671,8 +771,8 @@ static void indev_keypad_proc(lv_indev_t * i, lv_indev_data_t * data)
             i->long_pr_sent = 1;
             if(data->key == LV_KEY_ENTER) {
                 i->longpr_rep_timestamp = lv_tick_get();
-                lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED, indev_act);
-                if(indev_reset_check(i)) return;
+
+                if(send_event(LV_EVENT_LONG_PRESSED, indev_act) == LV_RESULT_INVALID) return;
             }
         }
         /*Long press repeated time has elapsed?*/
@@ -683,8 +783,7 @@ static void indev_keypad_proc(lv_indev_t * i, lv_indev_data_t * data)
 
             /*Send LONG_PRESS_REP on ENTER*/
             if(data->key == LV_KEY_ENTER) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED_REPEAT, indev_act);
-                if(indev_reset_check(i)) return;
+                if(send_event(LV_EVENT_LONG_PRESSED_REPEAT, indev_act) == LV_RESULT_INVALID) return;
             }
             /*Move the focus on NEXT again*/
             else if(data->key == LV_KEY_NEXT) {
@@ -706,22 +805,19 @@ static void indev_keypad_proc(lv_indev_t * i, lv_indev_data_t * data)
         }
     }
     /*Release happened*/
-    else if(!dis && data->state == LV_INDEV_STATE_RELEASED && prev_state == LV_INDEV_STATE_PRESSED) {
+    else if(is_enabled && data->state == LV_INDEV_STATE_RELEASED && prev_state == LV_INDEV_STATE_PRESSED) {
         LV_LOG_INFO("%" LV_PRIu32 " key is released", data->key);
         /*The user might clear the key when it was released. Always release the pressed key*/
         data->key = prev_key;
         if(data->key == LV_KEY_ENTER) {
 
-            lv_obj_send_event(indev_obj_act, LV_EVENT_RELEASED, indev_act);
-            if(indev_reset_check(i)) return;
+            if(send_event(LV_EVENT_RELEASED, indev_act) == LV_RESULT_INVALID) return;
 
             if(i->long_pr_sent == 0) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_SHORT_CLICKED, indev_act);
-                if(indev_reset_check(i)) return;
+                if(send_event(LV_EVENT_SHORT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
             }
 
-            lv_obj_send_event(indev_obj_act, LV_EVENT_CLICKED, indev_act);
-            if(indev_reset_check(i)) return;
+            if(send_event(LV_EVENT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
 
         }
         i->pr_timestamp = 0;
@@ -763,9 +859,7 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
         data->enc_diff = 0;
     }
 
-    /*Refresh the focused object. It might change due to lv_group_focus_prev/next*/
-    indev_obj_act = lv_group_get_focused(g);
-    if(indev_obj_act == NULL) return;
+    const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
 
     /*Button press happened*/
     if(data->state == LV_INDEV_STATE_PRESSED && last_state == LV_INDEV_STATE_RELEASED) {
@@ -777,8 +871,10 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
             bool editable_or_scrollable = lv_obj_is_editable(indev_obj_act) ||
                                           lv_obj_has_flag(indev_obj_act, LV_OBJ_FLAG_SCROLLABLE);
             if(lv_group_get_editing(g) == true || editable_or_scrollable == false) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_PRESSED, indev_act);
-                if(indev_reset_check(i)) return;
+
+                if(is_enabled) {
+                    if(send_event(LV_EVENT_PRESSED, indev_act) == LV_RESULT_INVALID) return;
+                }
             }
         }
         else if(data->key == LV_KEY_LEFT) {
@@ -794,8 +890,9 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
             lv_group_send_data(g, LV_KEY_ESC);
             if(indev_reset_check(i)) return;
 
-            lv_obj_send_event(indev_obj_act, LV_EVENT_CANCEL, indev_act);
-            if(indev_reset_check(i)) return;
+            if(is_enabled) {
+                if(send_event(LV_EVENT_CANCEL, indev_act) == LV_RESULT_INVALID) return;
+            }
         }
         /*Just send other keys to the object (e.g. 'A' or `LV_GROUP_KEY_RIGHT`)*/
         else {
@@ -812,6 +909,10 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
             i->longpr_rep_timestamp = lv_tick_get();
 
             if(data->key == LV_KEY_ENTER) {
+                /* Always send event to indev callbacks*/
+                lv_indev_send_event(indev_act, LV_EVENT_LONG_PRESSED, indev_obj_act);
+                if(indev_reset_check(indev_act)) return;
+
                 bool editable_or_scrollable = lv_obj_is_editable(indev_obj_act) ||
                                               lv_obj_has_flag(indev_obj_act, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -821,13 +922,15 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
                     if(lv_group_get_obj_count(g) > 1) {
                         LV_LOG_INFO("toggling edit mode");
                         lv_group_set_editing(g, lv_group_get_editing(g) ? false : true); /*Toggle edit mode on long press*/
-                        lv_obj_clear_state(indev_obj_act, LV_STATE_PRESSED);    /*Remove the pressed state manually*/
+                        lv_obj_remove_state(indev_obj_act, LV_STATE_PRESSED);    /*Remove the pressed state manually*/
                     }
                 }
-                /*If not editable then just send a long press Call the ancestor's event handler*/
+                /*If not editable then just send a long press event*/
                 else {
-                    lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED, indev_act);
-                    if(indev_reset_check(i)) return;
+                    if(is_enabled) {
+                        lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED, indev_act);
+                        if(indev_reset_check(indev_act)) return;
+                    }
                 }
             }
 
@@ -839,8 +942,9 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
             i->longpr_rep_timestamp = lv_tick_get();
 
             if(data->key == LV_KEY_ENTER) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED_REPEAT, indev_act);
-                if(indev_reset_check(i)) return;
+                if(is_enabled) {
+                    if(send_event(LV_EVENT_LONG_PRESSED_REPEAT, indev_act) == LV_RESULT_INVALID) return;
+                }
             }
             else if(data->key == LV_KEY_LEFT) {
                 /*emulate encoder left*/
@@ -868,34 +972,34 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
 
             /*The button was released on a non-editable object. Just send enter*/
             if(editable_or_scrollable == false) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_RELEASED, indev_act);
-                if(indev_reset_check(i)) return;
+                if(is_enabled) {
+                    if(send_event(LV_EVENT_RELEASED, indev_act) == LV_RESULT_INVALID) return;
+                }
 
-                if(i->long_pr_sent == 0) lv_obj_send_event(indev_obj_act, LV_EVENT_SHORT_CLICKED, indev_act);
-                if(indev_reset_check(i)) return;
+                if(i->long_pr_sent == 0 && is_enabled) {
+                    if(send_event(LV_EVENT_SHORT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
+                }
 
-                lv_obj_send_event(indev_obj_act, LV_EVENT_CLICKED, indev_act);
-                if(indev_reset_check(i)) return;
+                if(is_enabled) {
+                    if(send_event(LV_EVENT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
+                }
 
             }
             /*An object is being edited and the button is released.*/
             else if(lv_group_get_editing(g)) {
                 /*Ignore long pressed enter release because it comes from mode switch*/
                 if(!i->long_pr_sent || lv_group_get_obj_count(g) <= 1) {
-                    lv_obj_send_event(indev_obj_act, LV_EVENT_RELEASED, indev_act);
-                    if(indev_reset_check(i)) return;
-
-                    lv_obj_send_event(indev_obj_act, LV_EVENT_SHORT_CLICKED, indev_act);
-                    if(indev_reset_check(i)) return;
-
-                    lv_obj_send_event(indev_obj_act, LV_EVENT_CLICKED, indev_act);
-                    if(indev_reset_check(i)) return;
+                    if(is_enabled) {
+                        if(send_event(LV_EVENT_RELEASED, indev_act) == LV_RESULT_INVALID) return;
+                        if(send_event(LV_EVENT_SHORT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
+                        if(send_event(LV_EVENT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
+                    }
 
                     lv_group_send_data(g, LV_KEY_ENTER);
                     if(indev_reset_check(i)) return;
                 }
                 else {
-                    lv_obj_clear_state(indev_obj_act, LV_STATE_PRESSED);    /*Remove the pressed state manually*/
+                    lv_obj_remove_state(indev_obj_act, LV_STATE_PRESSED);    /*Remove the pressed state manually*/
                 }
             }
             /*If the focused object is editable and now in navigate mode then on enter switch edit
@@ -964,8 +1068,8 @@ static void indev_button_proc(lv_indev_t * i, lv_indev_data_t * data)
         return;
     }
 
-    lv_coord_t x = i->btn_points[data->btn_id].x;
-    lv_coord_t y = i->btn_points[data->btn_id].y;
+    int32_t x = i->btn_points[data->btn_id].x;
+    int32_t y = i->btn_points[data->btn_id].y;
 
     if(LV_INDEV_STATE_RELEASED != data->state) {
         if(data->state == LV_INDEV_STATE_PRESSED) {
@@ -1002,7 +1106,6 @@ static void indev_button_proc(lv_indev_t * i, lv_indev_data_t * data)
 /**
  * Process the pressed state of LV_INDEV_TYPE_POINTER input devices
  * @param indev pointer to an input device 'proc'
- * @return LV_RES_OK: no indev reset required; LV_RES_INV: indev reset is required
  */
 static void indev_proc_press(lv_indev_t * indev)
 {
@@ -1012,7 +1115,7 @@ static void indev_proc_press(lv_indev_t * indev)
 
     if(indev->wait_until_release != 0) return;
 
-    lv_disp_t * disp = indev_act->disp;
+    lv_display_t * disp = indev_act->disp;
     bool new_obj_searched = false;
 
     /*If there is no last object then search*/
@@ -1020,17 +1123,21 @@ static void indev_proc_press(lv_indev_t * indev)
         indev_obj_act = pointer_search_obj(disp, &indev->pointer.act_point);
         new_obj_searched = true;
     }
-    /*If there is an active object it's not scrolled and not protected also search*/
+    /*If there is an active object it's not scrolled and not press locked also search*/
     else if(indev->pointer.scroll_obj == NULL &&
             lv_obj_has_flag(indev_obj_act, LV_OBJ_FLAG_PRESS_LOCK) == false) {
         indev_obj_act = pointer_search_obj(disp, &indev->pointer.act_point);
         new_obj_searched = true;
     }
 
-    /*The last object might have scroll throw. Stop it manually*/
-    if(new_obj_searched && indev->pointer.last_obj) {
-        indev->pointer.scroll_throw_vect.x = 0;
-        indev->pointer.scroll_throw_vect.y = 0;
+    /*The scroll object might have scroll throw. Stop it manually*/
+    if(new_obj_searched && indev->pointer.scroll_obj) {
+        /*Attempt to stop scroll throw animation firstly*/
+        if(indev->scroll_throw_anim) {
+            lv_anim_delete(indev, indev_scroll_throw_anim_cb);
+            indev->scroll_throw_anim = NULL;
+        }
+
         _lv_indev_scroll_throw_handler(indev);
         if(indev_reset_check(indev)) return;
     }
@@ -1039,6 +1146,17 @@ static void indev_proc_press(lv_indev_t * indev)
     if(indev_obj_act != indev->pointer.act_obj) {
         indev->pointer.last_point.x = indev->pointer.act_point.x;
         indev->pointer.last_point.y = indev->pointer.act_point.y;
+
+        /*Without `LV_OBJ_FLAG_PRESS_LOCK` new widget can be found while pressing.*/
+        if(indev->pointer.last_hovered && indev->pointer.last_hovered != indev_obj_act) {
+            lv_obj_send_event(indev->pointer.last_hovered, LV_EVENT_HOVER_LEAVE, indev);
+            if(indev_reset_check(indev)) return;
+
+            lv_indev_send_event(indev, LV_EVENT_HOVER_LEAVE, indev->pointer.last_hovered);
+            if(indev_reset_check(indev)) return;
+
+            indev->pointer.last_hovered = indev_obj_act;
+        }
 
         /*If a new object found the previous was lost, so send a PRESS_LOST event*/
         if(indev->pointer.act_obj != NULL) {
@@ -1058,12 +1176,14 @@ static void indev_proc_press(lv_indev_t * indev)
         indev->pointer.last_obj = indev_obj_act;
 
         if(indev_obj_act != NULL) {
+
             /*Save the time when the obj pressed to count long press time.*/
             indev->pr_timestamp                 = lv_tick_get();
             indev->long_pr_sent                 = 0;
             indev->pointer.scroll_sum.x     = 0;
             indev->pointer.scroll_sum.y     = 0;
             indev->pointer.scroll_dir = LV_DIR_NONE;
+            indev->pointer.scroll_obj = NULL;
             indev->pointer.gesture_dir = LV_DIR_NONE;
             indev->pointer.gesture_sent   = 0;
             indev->pointer.gesture_sum.x  = 0;
@@ -1071,9 +1191,13 @@ static void indev_proc_press(lv_indev_t * indev)
             indev->pointer.vect.x         = 0;
             indev->pointer.vect.y         = 0;
 
-            /*Call the ancestor's event handler about the press*/
-            lv_obj_send_event(indev_obj_act, LV_EVENT_PRESSED, indev_act);
-            if(indev_reset_check(indev)) return;
+            const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
+            if(is_enabled) {
+                if(indev->pointer.last_hovered != indev_obj_act) {
+                    if(send_event(LV_EVENT_HOVER_OVER, indev_act) == LV_RESULT_INVALID) return;
+                }
+                if(send_event(LV_EVENT_PRESSED, indev_act) == LV_RESULT_INVALID) return;
+            }
 
             if(indev_act->wait_until_release) return;
 
@@ -1094,8 +1218,11 @@ static void indev_proc_press(lv_indev_t * indev)
     indev->pointer.scroll_throw_vect_ori = indev->pointer.scroll_throw_vect;
 
     if(indev_obj_act) {
-        lv_obj_send_event(indev_obj_act, LV_EVENT_PRESSING, indev_act);
-        if(indev_reset_check(indev)) return;
+        const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
+
+        if(is_enabled) {
+            if(send_event(LV_EVENT_PRESSING, indev_act) == LV_RESULT_INVALID) return;
+        }
 
         if(indev_act->wait_until_release) return;
 
@@ -1104,14 +1231,18 @@ static void indev_proc_press(lv_indev_t * indev)
         indev_gesture(indev);
         if(indev_reset_check(indev)) return;
 
+        if(indev->mode == LV_INDEV_MODE_EVENT && indev->read_timer && lv_timer_get_paused(indev->read_timer)) {
+            lv_timer_resume(indev->read_timer);
+        }
+
         /*If there is no scrolling then check for long press time*/
         if(indev->pointer.scroll_obj == NULL && indev->long_pr_sent == 0) {
-            /*Call the ancestor's event handler about the long press if enough time elapsed*/
+            /*Send a long press event if enough time elapsed*/
             if(lv_tick_elaps(indev->pr_timestamp) > indev_act->long_press_time) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED, indev_act);
-                if(indev_reset_check(indev)) return;
-
-                /*Mark the Call the ancestor's event handler sending to do not send it again*/
+                if(is_enabled) {
+                    if(send_event(LV_EVENT_LONG_PRESSED, indev_act) == LV_RESULT_INVALID) return;
+                }
+                /*Mark it to do not send the event again*/
                 indev->long_pr_sent = 1;
 
                 /*Save the long press time stamp for the long press repeat handler*/
@@ -1119,12 +1250,11 @@ static void indev_proc_press(lv_indev_t * indev)
             }
         }
 
-        /*Send long press repeated Call the ancestor's event handler*/
         if(indev->pointer.scroll_obj == NULL && indev->long_pr_sent == 1) {
-            /*Call the ancestor's event handler about the long press repeat if enough time elapsed*/
             if(lv_tick_elaps(indev->longpr_rep_timestamp) > indev_act->long_press_repeat_time) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_LONG_PRESSED_REPEAT, indev_act);
-                if(indev_reset_check(indev)) return;
+                if(is_enabled) {
+                    if(send_event(LV_EVENT_LONG_PRESSED_REPEAT, indev_act) == LV_RESULT_INVALID) return;
+                }
                 indev->longpr_rep_timestamp = lv_tick_get();
             }
         }
@@ -1137,6 +1267,25 @@ static void indev_proc_press(lv_indev_t * indev)
  */
 static void indev_proc_release(lv_indev_t * indev)
 {
+    if(indev->wait_until_release || /*Hover the new widget even if the coordinates didn't changed*/
+       (indev->pointer.last_point.x != indev->pointer.act_point.x ||
+        indev->pointer.last_point.y != indev->pointer.act_point.y)) {
+        lv_obj_t ** last = &indev->pointer.last_hovered;
+        lv_obj_t * hovered = pointer_search_obj(lv_display_get_default(), &indev->pointer.act_point);
+        if(*last != hovered) {
+            lv_obj_send_event(hovered, LV_EVENT_HOVER_OVER, indev);
+            if(indev_reset_check(indev)) return;
+            lv_indev_send_event(indev, LV_EVENT_HOVER_OVER, hovered);
+            if(indev_reset_check(indev)) return;
+
+            lv_obj_send_event(*last, LV_EVENT_HOVER_LEAVE, indev);
+            if(indev_reset_check(indev)) return;
+            lv_indev_send_event(indev, LV_EVENT_HOVER_LEAVE, *last);
+            if(indev_reset_check(indev)) return;
+            *last = hovered;
+        }
+    }
+
     if(indev->wait_until_release) {
         lv_obj_send_event(indev->pointer.act_obj, LV_EVENT_PRESS_LOST, indev_act);
         if(indev_reset_check(indev)) return;
@@ -1150,75 +1299,116 @@ static void indev_proc_release(lv_indev_t * indev)
     indev_obj_act = indev->pointer.act_obj;
     lv_obj_t * scroll_obj = indev->pointer.scroll_obj;
 
-    /*Forget the act obj and send a released Call the ancestor's event handler*/
+    if(indev->mode == LV_INDEV_MODE_EVENT && indev->read_timer && !lv_timer_get_paused(indev->read_timer)) {
+        lv_timer_pause(indev->read_timer);
+    }
+
     if(indev_obj_act) {
         LV_LOG_INFO("released");
 
-        /*Send RELEASE Call the ancestor's event handler and event*/
-        lv_obj_send_event(indev_obj_act, LV_EVENT_RELEASED, indev_act);
-        if(indev_reset_check(indev)) return;
+        const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
 
-        /*Send CLICK if no scrolling*/
-        if(scroll_obj == NULL) {
-            if(indev->long_pr_sent == 0) {
-                lv_obj_send_event(indev_obj_act, LV_EVENT_SHORT_CLICKED, indev_act);
-                if(indev_reset_check(indev)) return;
+        if(is_enabled) {
+            if(send_event(LV_EVENT_RELEASED, indev_act) == LV_RESULT_INVALID) return;
+        }
+
+        if(is_enabled) {
+            if(scroll_obj == NULL) {
+                if(indev->long_pr_sent == 0) {
+                    if(send_event(LV_EVENT_SHORT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
+                }
+                if(send_event(LV_EVENT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
             }
-
-            lv_obj_send_event(indev_obj_act, LV_EVENT_CLICKED, indev_act);
-            if(indev_reset_check(indev)) return;
+            else {
+                if(send_event(LV_EVENT_SCROLL_THROW_BEGIN, indev_act) == LV_RESULT_INVALID) return;
+            }
         }
-        else {
-            lv_obj_send_event(scroll_obj, LV_EVENT_SCROLL_THROW_BEGIN, indev_act);
-            if(indev_reset_check(indev)) return;
-        }
-
         indev->pointer.act_obj = NULL;
         indev->pr_timestamp          = 0;
         indev->longpr_rep_timestamp  = 0;
 
-
         /*Get the transformed vector with this object*/
         if(scroll_obj) {
             int16_t angle = 0;
-            int16_t zoom = 256;
+            int16_t scale_x = 256;
+            int16_t scale_y = 256;
             lv_point_t pivot = { 0, 0 };
             lv_obj_t * parent = scroll_obj;
             while(parent) {
-                angle += lv_obj_get_style_transform_angle(parent, 0);
-                int32_t zoom_act = lv_obj_get_style_transform_zoom_safe(parent, 0);
-                zoom = (zoom * zoom_act) >> 8;
+                angle += lv_obj_get_style_transform_rotation(parent, 0);
+                int32_t zoom_act_x = lv_obj_get_style_transform_scale_x_safe(parent, 0);
+                int32_t zoom_act_y = lv_obj_get_style_transform_scale_y_safe(parent, 0);
+                scale_x = (scale_x * zoom_act_x) >> 8;
+                scale_y = (scale_x * zoom_act_y) >> 8;
                 parent = lv_obj_get_parent(parent);
             }
 
-            if(angle != 0 || zoom != LV_ZOOM_NONE) {
+            if(angle != 0 || scale_y != LV_SCALE_NONE || scale_x != LV_SCALE_NONE) {
                 angle = -angle;
-                zoom = (256 * 256) / zoom;
-                lv_point_transform(&indev->pointer.scroll_throw_vect, angle, zoom, &pivot);
-                lv_point_transform(&indev->pointer.scroll_throw_vect_ori, angle, zoom, &pivot);
+                scale_x = (256 * 256) / scale_x;
+                scale_y = (256 * 256) / scale_y;
+                lv_point_transform(&indev->pointer.scroll_throw_vect, angle, scale_x, scale_y, &pivot, false);
+                lv_point_transform(&indev->pointer.scroll_throw_vect_ori, angle, scale_x, scale_y, &pivot, false);
             }
         }
-
     }
 
     if(scroll_obj) {
-        _lv_indev_scroll_throw_handler(indev);
+        if(!indev->scroll_throw_anim) {
+            indev_scroll_throw_anim_start(indev);
+        }
+
         if(indev_reset_check(indev)) return;
     }
 }
 
-static lv_obj_t * pointer_search_obj(lv_disp_t * disp, lv_point_t * p)
+static void indev_proc_pointer_diff(lv_indev_t * indev)
 {
-    indev_obj_act = lv_indev_search_obj(lv_disp_get_layer_sys(disp), p);
+    lv_obj_t * obj = indev->pointer.last_pressed;
+    if(obj == NULL) return;
+    if(indev->pointer.diff == 0) return;
+
+    indev_obj_act = obj;
+
+    bool editable = lv_obj_is_editable(obj);
+
+    if(editable) {
+        uint32_t indev_sensitivity = indev->rotary_sensitivity;
+        uint32_t obj_sensitivity = lv_obj_get_style_rotary_sensitivity(indev_obj_act, 0);
+        int32_t diff = (int32_t)((int32_t)indev->pointer.diff * indev_sensitivity * obj_sensitivity + 32768) >> 16;
+        send_event(LV_EVENT_ROTARY, &diff);
+    }
+    else {
+
+        int32_t vect = indev->pointer.diff > 0 ? indev->scroll_limit : -indev->scroll_limit;
+        indev->pointer.vect.y = vect;
+        indev->pointer.act_obj = obj;
+        lv_obj_t * scroll_obj = lv_indev_find_scroll_obj(indev);
+        if(scroll_obj == NULL) return;
+        uint32_t indev_sensitivity = indev->rotary_sensitivity;
+        uint32_t obj_sensitivity = lv_obj_get_style_rotary_sensitivity(scroll_obj, 0);
+        int32_t diff = (int32_t)((int32_t)indev->pointer.diff * indev_sensitivity * obj_sensitivity + 32768) >> 16;
+
+        indev->pointer.scroll_throw_vect.y = diff;
+        indev->pointer.scroll_throw_vect_ori.y = diff;
+        _lv_indev_scroll_handler(indev);
+    }
+
+}
+
+static lv_obj_t * pointer_search_obj(lv_display_t * disp, lv_point_t * p)
+{
+    indev_obj_act = lv_indev_search_obj(lv_display_get_layer_sys(disp), p);
     if(indev_obj_act) return indev_obj_act;
 
-    indev_obj_act = lv_indev_search_obj(lv_disp_get_layer_top(disp), p);
+    indev_obj_act = lv_indev_search_obj(lv_display_get_layer_top(disp), p);
     if(indev_obj_act) return indev_obj_act;
 
-    indev_obj_act = lv_indev_search_obj(lv_disp_get_scr_act(disp), p);
+    /* Search the object in the active screen */
+    indev_obj_act = lv_indev_search_obj(lv_display_get_screen_active(disp), p);
     if(indev_obj_act) return indev_obj_act;
 
-    indev_obj_act = lv_indev_search_obj(lv_disp_get_layer_bottom(disp), p);
+    indev_obj_act = lv_indev_search_obj(lv_display_get_layer_bottom(disp), p);
     return indev_obj_act;
 }
 
@@ -1234,13 +1424,15 @@ static void indev_proc_reset_query_handler(lv_indev_t * indev)
     if(indev->reset_query) {
         indev->pointer.act_obj           = NULL;
         indev->pointer.last_obj          = NULL;
-        indev->pointer.scroll_obj          = NULL;
+        indev->pointer.scroll_obj        = NULL;
+        indev->pointer.last_hovered      = NULL;
         indev->long_pr_sent                    = 0;
         indev->pr_timestamp                    = 0;
         indev->longpr_rep_timestamp            = 0;
         indev->pointer.scroll_sum.x        = 0;
         indev->pointer.scroll_sum.y        = 0;
         indev->pointer.scroll_dir = LV_DIR_NONE;
+        indev->pointer.scroll_obj = NULL;
         indev->pointer.scroll_throw_vect.x = 0;
         indev->pointer.scroll_throw_vect.y = 0;
         indev->pointer.gesture_sum.x     = 0;
@@ -1324,7 +1516,6 @@ static void indev_click_focus(lv_indev_t * indev)
 */
 void indev_gesture(lv_indev_t * indev)
 {
-
     if(indev->pointer.scroll_obj) return;
     if(indev->pointer.gesture_sent) return;
 
@@ -1367,6 +1558,9 @@ void indev_gesture(lv_indev_t * indev)
 
         lv_obj_send_event(gesture_obj, LV_EVENT_GESTURE, indev_act);
         if(indev_reset_check(indev)) return;
+
+        lv_indev_send_event(indev_act, LV_EVENT_LONG_PRESSED, gesture_obj);
+        if(indev_reset_check(indev_act)) return;
     }
 }
 
@@ -1382,4 +1576,107 @@ static bool indev_reset_check(lv_indev_t * indev)
     }
 
     return indev->reset_query;
+}
+
+/**
+ * Reset the indev and send event to active obj and scroll obj
+ * @param indev pointer to an input device
+ * @param obj pointer to obj
+*/
+static void indev_reset_core(lv_indev_t * indev, lv_obj_t * obj)
+{
+    lv_obj_t * act_obj = NULL;
+    lv_obj_t * scroll_obj = NULL;
+
+    indev->reset_query = 1;
+    if(indev_act == indev) indev_obj_act = NULL;
+    if(indev->type == LV_INDEV_TYPE_POINTER || indev->type == LV_INDEV_TYPE_KEYPAD) {
+        if(obj == NULL || indev->pointer.last_pressed == obj) {
+            indev->pointer.last_pressed = NULL;
+        }
+        if(obj == NULL || indev->pointer.act_obj == obj) {
+            if(indev->pointer.act_obj) {
+                /* Avoid recursive calls */
+                act_obj = indev->pointer.act_obj;
+                indev->pointer.act_obj = NULL;
+                lv_obj_send_event(act_obj, LV_EVENT_INDEV_RESET, indev);
+                lv_indev_send_event(indev, LV_EVENT_INDEV_RESET, act_obj);
+                act_obj = NULL;
+            }
+        }
+        if(obj == NULL || indev->pointer.last_obj == obj) {
+            indev->pointer.last_obj = NULL;
+        }
+        if(obj == NULL || indev->pointer.scroll_obj == obj) {
+            if(indev->pointer.scroll_obj) {
+                /* Avoid recursive calls */
+                scroll_obj = indev->pointer.scroll_obj;
+                indev->pointer.scroll_obj = NULL;
+                lv_obj_send_event(scroll_obj, LV_EVENT_INDEV_RESET, indev);
+                lv_indev_send_event(indev, LV_EVENT_INDEV_RESET, act_obj);
+                scroll_obj = NULL;
+            }
+        }
+        if(obj == NULL || indev->pointer.last_hovered == obj) {
+            indev->pointer.last_hovered = NULL;
+        }
+    }
+}
+
+static lv_result_t send_event(lv_event_code_t code, void * param)
+{
+    lv_obj_send_event(indev_obj_act, code, param);
+    if(indev_reset_check(indev_act)) return LV_RESULT_INVALID;
+
+    if(code == LV_EVENT_PRESSED ||
+       code == LV_EVENT_CLICKED ||
+       code == LV_EVENT_RELEASED ||
+       code == LV_EVENT_LONG_PRESSED ||
+       code == LV_EVENT_LONG_PRESSED_REPEAT ||
+       code == LV_EVENT_ROTARY) {
+        lv_indev_send_event(indev_act, code, indev_obj_act);
+        if(indev_reset_check(indev_act)) return LV_RESULT_INVALID;
+    }
+
+    return LV_RESULT_OK;
+}
+
+static void indev_scroll_throw_anim_cb(void * var, int32_t v)
+{
+    LV_ASSERT_NULL(var);
+    LV_UNUSED(v);
+    lv_indev_t * indev = (lv_indev_t *)var;
+
+    _lv_indev_scroll_throw_handler(indev);
+
+    if(indev->pointer.scroll_dir == LV_DIR_NONE || indev->pointer.scroll_obj == NULL) {
+        if(indev->scroll_throw_anim) {
+            LV_LOG_INFO("stop animation");
+            lv_anim_delete(indev, indev_scroll_throw_anim_cb);
+        }
+    }
+}
+
+static void indev_scroll_throw_anim_completed_cb(lv_anim_t * anim)
+{
+    if(anim) {
+        indev_scroll_throw_anim_reset((lv_indev_t *)anim->var);
+    }
+}
+
+static void indev_scroll_throw_anim_start(lv_indev_t * indev)
+{
+    LV_ASSERT_NULL(indev);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, indev);
+    lv_anim_set_duration(&a, 1024);
+    lv_anim_set_values(&a, 0, 1024);
+    lv_anim_set_exec_cb(&a, indev_scroll_throw_anim_cb);
+    lv_anim_set_completed_cb(&a, indev_scroll_throw_anim_completed_cb);
+    lv_anim_set_deleted_cb(&a, indev_scroll_throw_anim_completed_cb);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+
+    indev->scroll_throw_anim = lv_anim_start(&a);
 }

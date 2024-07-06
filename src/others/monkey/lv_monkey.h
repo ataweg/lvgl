@@ -12,7 +12,8 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
-#include "../../../lvgl.h"
+#include "../../lv_conf_internal.h"
+#include "../../indev/lv_indev.h"
 
 #if LV_USE_MONKEY != 0
 
@@ -101,7 +102,7 @@ void * lv_monkey_get_user_data(lv_monkey_t * monkey);
  * Delete monkey
  * @param monkey pointer to monkey
  */
-void lv_monkey_del(lv_monkey_t * monkey);
+void lv_monkey_delete(lv_monkey_t * monkey);
 
 /**********************
  *      MACROS

@@ -47,10 +47,10 @@ static void event_cb(lv_event_t * e)
  */
 void lv_example_event_4(void)
 {
-    lv_obj_t * cont = lv_obj_create(lv_scr_act());
+    lv_obj_t * cont = lv_obj_create(lv_screen_active());
     lv_obj_set_size(cont, 200, 200);
     lv_obj_center(cont);
-    lv_obj_add_event(cont, event_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
+    lv_obj_add_event_cb(cont, event_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
     lv_obj_add_flag(cont, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
     lv_timer_create(timer_cb, 30, cont);
 }

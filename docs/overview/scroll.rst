@@ -1,3 +1,5 @@
+.. _scroll:
+
 ======
 Scroll
 ======
@@ -9,8 +11,8 @@ In LVGL scrolling works very intuitively: if an object is outside its
 parent content area (the size without padding), the parent becomes
 scrollable and scrollbar(s) will appear. That's it.
 
-Any object can be scrollable including ``lv_obj_t``, ``lv_img``,
-``lv_btn``, ``lv_meter``, etc
+Any object can be scrollable including ``lv_obj``, ``lv_image``,
+``lv_button``, ``lv_meter``, etc
 
 The object can either be scrolled horizontally or vertically in one
 stroke; diagonal scrolling is not possible.
@@ -73,6 +75,8 @@ base direction.
 ``pad_left/right/top/bottom`` sets the spacing around the scrollbars and
 ``width`` sets the scrollbar's width.
 
+.. _scroll_events:
+
 Events
 ------
 
@@ -98,14 +102,15 @@ Scrollable
 ----------
 
 It's possible to make an object non-scrollable with
-:cpp:expr:`lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE)`.
+:cpp:expr:`lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE)`.
 
 Non-scrollable objects can still propagate the scrolling (chain) to
 their parents.
 
-The direction in which scrolling happens can be controlled by
-``lv_obj_set_scroll_dir(obj, LV_DIR_...)``. The following values are
-possible for the direction:
+The direction in which scrolling happens can be controlled by ``lv_obj_set_scroll_dir(obj, LV_DIR_...)``. 
+
+The following values are possible for the direction:
+
 - :cpp:enumerator:`LV_DIR_TOP`: only scroll up
 - :cpp:enumerator:`LV_DIR_LEFT`: only scroll left
 - :cpp:enumerator:`LV_DIR_BOTTOM`: only scroll down
@@ -143,7 +148,7 @@ The scroll momentum can be enabled/disabled with the
 Elastic scroll
 --------------
 
-Normally an object can't be scrolled past the extremeties of its
+Normally an object can't be scrolled past the extremities of its
 content. That is the top side of the content can't be below the top side
 of the object.
 
@@ -225,7 +230,7 @@ to combine scroll event and store the scroll top position.
    }
 
    lv_obj_t* container = lv_obj_create(NULL);
-   lv_obj_add_event(container, store_scroll_value_event_cb, LV_EVENT_SCROLL, NULL);
+   lv_obj_add_event_cb(container, store_scroll_value_event_cb, LV_EVENT_SCROLL, NULL);
 
 Scroll coordinates can be retrieved from different axes with these
 functions:
@@ -272,10 +277,14 @@ an object. Here is an example to see how to handle the event:
      }
    }
 
+.. _scroll_example:
+
 Examples
 ********
 
 .. include:: ../examples/scroll/index.rst
+
+.. _scroll_api:
 
 API
 ***

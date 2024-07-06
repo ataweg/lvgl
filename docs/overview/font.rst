@@ -1,3 +1,5 @@
+.. _fonts:
+
 =====
 Fonts
 =====
@@ -11,15 +13,18 @@ For example:
 
    lv_style_set_text_font(&my_style, &lv_font_montserrat_28);  /*Set a larger font*/
 
-Fonts have a **bpp (bits per pixel)** property. It shows how many bits
-are used to describe a pixel in a font. The value stored for a pixel
-determines the pixel's opacity. This way, with higher *bpp*, the edges
-of the letter can be smoother. The possible *bpp* values are 1, 2, 4 and
-8 (higher values mean better quality).
+Fonts have a **format** property. It describes how the glyph draw data is stored.
+It has *2* categories: `Legacy simple format` and `Advanced format`.
+In the legacy simple format, the font is stored in a simple array of bitmaps.
+In the advanced format, the font is stored in a different way like `Vector`, `SVG`, etc.
 
-The *bpp* property also affects the amount of memory needed to store a
-font. For example, *bpp = 4* makes a font nearly four times larger
-compared to *bpp = 1*.
+In the legacy simple format, the value stored for a pixel determines the pixel's opacity.
+This way, with higher *bpp (bit per pixel)*, the edges of the letter can be smoother.
+The possible *bpp* values are 1, 2, 4 and 8 (higher values mean better quality).
+
+The *format* property also affects the amount of memory needed to store a
+font. For example, *format = LV_FONT_GLYPH_FORMAT_A4* makes a font nearly four times larger
+compared to *format = LV_FONT_GLYPH_FORMAT_A1*.
 
 Unicode support
 ***************
@@ -33,7 +38,7 @@ To test it try
 
 .. code:: c
 
-   lv_obj_t * label1 = lv_label_create(lv_scr_act(), NULL);
+   lv_obj_t * label1 = lv_label_create(lv_screen_active(), NULL);
    lv_label_set_text(label1, LV_SYMBOL_OK);
 
 If all works well, a ✓ character should be displayed.
@@ -42,7 +47,11 @@ Built-in fonts
 **************
 
 There are several built-in fonts in different sizes, which can be
-enabled in ``lv_conf.h`` with *LV_FONT\_…* defines. ### Normal fonts
+enabled in ``lv_conf.h`` with *LV_FONT\_…* defines. 
+
+Normal fonts
+------------
+
 Containing all the ASCII characters, the degree symbol (U+00B0), the
 bullet symbol (U+2022) and the built-in symbols (see below).
 
@@ -69,8 +78,7 @@ bullet symbol (U+2022) and the built-in symbols (see below).
 Special fonts
 -------------
 
--  :c:macro:`LV_FONT_MONTSERRAT_12_SUBPX`: Same as normal 12 px font but with `subpixel rendering <#subpixel-rendering>`__
--  :c:macro:`LV_FONT_MONTSERRAT_28_COMPRESSED`: Same as normal 28 px font but stored as a `compressed font <#compress-fonts>`__ with 3 bpp
+-  :c:macro:`LV_FONT_MONTSERRAT_28_COMPRESSED`: Same as normal 28 px font but stored as a :ref:`fonts_compressed` with 3 bpp
 -  :c:macro:`LV_FONT_DEJAVU_16_PERSIAN_HEBREW`: 16 px font with normal range + Hebrew, Arabic, Persian letters and all their forms
 -  :c:macro:`LV_FONT_SIMSUN_16_CJK`: 16 px font with normal range plus 1000 of the most common CJK radicals
 -  :c:macro:`LV_FONT_UNSCII_8`: 8 px pixel perfect font with only ASCII characters
@@ -86,6 +94,8 @@ the `Montserrat <https://fonts.google.com/specimen/Montserrat>`__ font.
 In addition to the ASCII range, the following symbols are also added to
 the built-in fonts from the `FontAwesome <https://fontawesome.com/>`__
 font.
+
+.. _fonts_symbols:
 
 .. image:: /misc/symbols.png
 
@@ -135,22 +145,22 @@ The default base direction for screens can be set by
 :c:macro:`LV_BIDI_BASE_DIR_DEF` in *lv_conf.h* and other objects inherit the
 base direction from their parent.
 
-To set an object's base direction use :cpp:expr:`lv_obj_set_base_dir(obj, base_dir)`.
-The possible base directions are: 
+To set an object's base direction use :cpp:expr:`lv_obj_set_style_base_dir(obj, base_dir, selector)`.
+The possible base directions are:
 
 - :cpp:enumerator:`LV_BASE_DIR_LTR`: Left to Right base direction
 - :cpp:enumerator:`LV_BASE_DIR_RTL`: Right to Left base direction
 - :cpp:enumerator:`LV_BASE_DIR_AUTO`: Auto detect base direction
 
-This list summarizes the effect of RTL base direction on objects: 
+This list summarizes the effect of RTL base direction on objects:
 
-- Create objects by default on the right 
-- ``lv_tabview``: Displays tabs from right to left 
-- ``lv_checkbox``: Shows the box on the right 
-- ``lv_btnmatrix``: Shows buttons from right to left 
-- ``lv_list``: Shows icons on the right 
-- ``lv_dropdown``: Aligns options to the right 
-- The texts in ``lv_table``, ``lv_btnmatrix``, ``lv_keyboard``, ``lv_tabview``, ``lv_dropdown``, ``lv_roller`` are "BiDi processed" to be displayed correctly
+- Create objects by default on the right
+- ``lv_tabview``: Displays tabs from right to left
+- ``lv_checkbox``: Shows the box on the right
+- ``lv_buttonmatrix``: Shows buttons from right to left
+- ``lv_list``: Shows icons on the right
+- ``lv_dropdown``: Aligns options to the right
+- The texts in ``lv_table``, ``lv_buttonmatrix``, ``lv_keyboard``, ``lv_tabview``, ``lv_dropdown``, ``lv_roller`` are "BiDi processed" to be displayed correctly
 
 Arabic and Persian support
 --------------------------
@@ -163,9 +173,9 @@ should also be taken into account.
 
 LVGL supports these rules if :c:macro:`LV_USE_ARABIC_PERSIAN_CHARS` is enabled.
 
-However, there are some limitations: 
+However, there are some limitations:
 
-- Only displaying text is supported (e.g. on labels), text inputs (e.g. text area) don't support this feature. 
+- Only displaying text is supported (e.g. on labels), text inputs (e.g. text area) don't support this feature.
 - Static text (i.e. const) is not processed. E.g. texts set by :cpp:func:`lv_label_set_text` will be "Arabic processed" but :cpp:func:`lv_label_set_text_static` won't.
 - Text get functions (e.g. :cpp:func:`lv_label_get_text`) will return the processed text.
 
@@ -180,9 +190,9 @@ letter anti-aliasing. Learn more
 `here <https://en.wikipedia.org/wiki/Subpixel_rendering>`__.
 
 For subpixel rendering, the fonts need to be generated with special
-settings: 
+settings:
 
-- In the online converter tick the ``Subpixel`` box 
+- In the online converter tick the ``Subpixel`` box
 - In the command line tool use ``--lcd`` flag. Note that the generated font needs about three times more memory.
 
 Subpixel rendering works only if the color channels of the pixels have a
@@ -192,35 +202,51 @@ match with the library settings. By default, LVGL assumes ``RGB`` order,
 however this can be swapped by setting :c:macro:`LV_SUBPX_BGR`  ``1`` in
 *lv_conf.h*.
 
+.. _fonts_compressed:
+
 Compressed fonts
 ----------------
 
-The bitmaps of fonts can be compressed by 
+The bitmaps of fonts can be compressed by
 
-- ticking the ``Compressed`` check box in the online converter 
+- ticking the ``Compressed`` check box in the online converter
 - not passing the ``--no-compress`` flag to the offline converter (compression is applied by default)
 
 Compression is more effective with larger fonts and higher bpp. However,
 it's about 30% slower to render compressed fonts. Therefore, it's
 recommended to compress only the largest fonts of a user interface,
-because 
+because
 
-- they need the most memory 
-- they can be compressed better 
+- they need the most memory
+- they can be compressed better
 - and probably they are used less frequently then the medium-sized fonts, so the performance cost is smaller.
+
+Kerning
+-------
+
+Fonts may provide kerning information to adjust the spacing between specific
+characters.
+
+- The online converter generates kerning tables.
+- The offline converter generates kerning tables unless ``--no-kerning`` is
+  specified.
+- FreeType integration does not currently support kerning.
+- The Tiny TTF font engine supports GPOS and Kern tables.
+
+To configure kerning at runtime, use :cpp:func:`lv_font_set_kerning`.
 
 .. _add_font:
 
 Add a new font
 **************
 
-There are several ways to add a new font to your project: 
+There are several ways to add a new font to your project:
 
-1. The simplest method is to use the `Online font converter <https://lvgl.io/tools/fontconverter>`__. 
+1. The simplest method is to use the `Online font converter <https://lvgl.io/tools/fontconverter>`__.
    Just set the parameters, click the *Convert* button, copy the font to your project
    and use it. **Be sure to carefully read the steps provided on that site
-   or you will get an error while converting.** 
-2. Use the `Offline font converter <https://github.com/lvgl/lv_font_conv>`__. 
+   or you will get an error while converting.**
+2. Use the `Offline font converter <https://github.com/lvgl/lv_font_conv>`__.
    (Requires Node.js to be installed)
 3. If you want to create something like the built-in
    fonts (Montserrat font and symbols) but in a different size and/or
@@ -238,10 +264,10 @@ Add new symbols
 
 The built-in symbols are created from the `FontAwesome <https://fontawesome.com/>`__ font.
 
-1. Search for a symbol on https://fontawesome.com. For example the 
+1. Search for a symbol on https://fontawesome.com. For example the
    `USB symbol <https://fontawesome.com/icons/usb?style=brands>`__. Copy its
    Unicode ID which is ``0xf287`` in this case.
-2. Open the `Online font converter <https://lvgl.io/tools/fontconverter>`__. 
+2. Open the `Online font converter <https://lvgl.io/tools/fontconverter>`__.
    Add `FontAwesome.woff <https://lvgl.io/assets/others/FontAwesome5-Solid+Brands+Regular.woff>`__.
 3. Set the parameters such as Name, Size, BPP. You'll use this name to
    declare and use the font in your code.
@@ -252,9 +278,9 @@ The built-in symbols are created from the `FontAwesome <https://fontawesome.com/
 6. Declare the font using ``extern lv_font_t my_font_name;`` or simply
    use :cpp:expr:`LV_FONT_DECLARE(my_font_name)`.
 
-**Using the symbol** 
+**Using the symbol**
 
-1. Convert the Unicode value to UTF8, for example on 
+1. Convert the Unicode value to UTF8, for example on
    `this site <http://www.ltg.ed.ac.uk/~richard/utf-8.cgi?input=f287&mode=hex>`__.
    For ``0xf287`` the *Hex UTF-8 bytes* are ``EF 8A 87``.
 2. Create a ``define`` string from the UTF8 values: ``#define MY_USB_SYMBOL "\xEF\x8A\x87"``
@@ -267,41 +293,41 @@ The built-in symbols are created from the `FontAwesome <https://fontawesome.com/
 Load a font at run-time
 ***********************
 
-:cpp:func:`lv_font_load` can be used to load a font from a file. The font needs
+:cpp:func:`lv_binfont_create` can be used to load a font from a file. The font needs
 to have a special binary format. (Not TTF or WOFF). Use
 `lv_font_conv <https://github.com/lvgl/lv_font_conv/>`__ with the
 ``--format bin`` option to generate an LVGL compatible font file.
 
-:note: To load a font `LVGL's filesystem </overview/file-system>`__
+:note: To load a font :ref:`LVGL's filesystem <overview_file_system>`
        needs to be enabled and a driver must be added.
 
 Example
 
 .. code:: c
 
-   lv_font_t * my_font;
-   my_font = lv_font_load(X/path/to/my_font.bin);
+   lv_font_t *my_font = lv_binfont_create("X:/path/to/my_font.bin");
+   if(my_font == NULL) return;
 
    /*Use the font*/
 
    /*Free the font if not required anymore*/
-   lv_font_free(my_font);
+   lv_binfont_destroy(my_font);
 
 Load a font from a memory buffer at run-time
 ******************************************
 
-:cpp:func:`lv_font_load_from_buffer` can be used to load a font from a memory buffer.
+:cpp:func:`lv_binfont_create_from_buffer` can be used to load a font from a memory buffer.
 This function may be useful to load a font from an external file system, which is not
 supported by LVGL. The font needs to be in the same format as if it were loaded from a file.
 
-:note: To load a font from a buffer `LVGL's filesystem </overview/file-system>`__
+:note: To load a font from a buffer :ref:`LVGL's filesystem <overview_file_system>`
        needs to be enabled and the MEMFS driver must be added.
 
 Example
 
 .. code:: c
 
-   lv_font_t * my_font;
+   lv_font_t *my_font;
    uint8_t *buf;
    uint32_t bufsize;
 
@@ -309,12 +335,12 @@ Example
    ...
 
    /*Load font from the buffer*/
-   my_font = lv_font_load_from_buffer((void *)buf, buf));
-
+   my_font = lv_binfont_create_from_buffer((void *)buf, buf));
+   if(my_font == NULL) return;
    /*Use the font*/
 
    /*Free the font if not required anymore*/
-   lv_font_free(my_font);
+   lv_binfont_destroy(my_font);
 
 Add a new font engine
 *********************
@@ -359,7 +385,7 @@ To do this, a custom :cpp:type:`lv_font_t` variable needs to be created:
        dsc_out->box_w = 6;         /*Width of the bitmap in [px]*/
        dsc_out->ofs_x = 0;         /*X offset of the bitmap in [pf]*/
        dsc_out->ofs_y = 3;         /*Y offset of the bitmap measured from the as line*/
-       dsc_out->bpp   = 2;         /*Bits per pixel: 1/2/4/8*/
+       dsc_out->format= LV_FONT_GLYPH_FORMAT_A2;
 
        return true;                /*true: glyph found; false: glyph was not found*/
    }
@@ -393,6 +419,8 @@ font from ``fallback`` to handle.
    lv_font_t *droid_sans_fallback = my_font_load_function();
    /* So now we can display Roboto for supported characters while having wider characters set support */
    roboto->fallback = droid_sans_fallback;
+
+.. _fonts_api:
 
 API
 ***
