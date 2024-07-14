@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 // 2024-02-11 added by AWe
 
-=======
->>>>>>> c50aa2916d95d9c5d71a2176aaee6879ad5690ac
 #include "../../lv_examples.h"
 #if LV_USE_KEYBOARD && LV_BUILD_EXAMPLES
 

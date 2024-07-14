@@ -1,4 +1,4 @@
-// modified by AWe
+// 2024-07-13 modified by AWe
 
 /**
  * @file lv_example_widgets.h
