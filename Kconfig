@@ -177,6 +177,13 @@ menu "LVGL configuration"
 		help
 			Align the start address of draw_buf addresses to this bytes.
 
+		config LV_DRAW_TRANSFORM_USE_MATRIX
+			bool "Using matrix for transformations"
+			default n
+			depends on LV_USE_MATRIX
+			help
+				Requirements: The rendering engine needs to support 3x3 matrix transformations.
+
 		config LV_DRAW_LAYER_SIMPLE_BUF_SIZE
 			int "Optimal size to buffer the widget with opacity"
 			default 24576
@@ -238,7 +245,12 @@ menu "LVGL configuration"
 			bool "Enable support for A8 color format"
 			default y
 			depends on LV_USE_DRAW_SW
-				
+
+		config LV_DRAW_SW_SUPPORT_I1
+			bool "Enable support for I1 color format"
+			default y
+			depends on LV_USE_DRAW_SW
+
 		config LV_DRAW_SW_DRAW_UNIT_CNT
 			int "Number of draw units"
 			default 1
@@ -367,6 +379,8 @@ menu "LVGL configuration"
 
 		config LV_USE_DRAW_VG_LITE
 			bool "Use VG-Lite GPU"
+			default n
+			select LV_USE_MATRIX
 
 		config LV_VG_LITE_USE_GPU_INIT
 			bool "Enable VG-Lite custom external 'gpu_init()' function"
@@ -402,9 +416,15 @@ menu "LVGL configuration"
 					linear: 4K bytes.
 					radial: radius * 4K bytes.
 
+		config LV_VG_LITE_STROKE_CACHE_CNT
+			int "VG-Lite stroke maximum cache number."
+			default 32
+			depends on LV_USE_DRAW_VG_LITE
+
 		config LV_USE_VECTOR_GRAPHIC
 			bool "Use Vector Graphic APIs"
 			default n
+			select LV_USE_MATRIX
 			help
 				Enable drawing support vector graphic APIs.
 	endmenu
@@ -686,6 +706,11 @@ menu "LVGL configuration"
 		config LV_USE_FLOAT
 			bool "Use float as lv_value_precise_t"
 			default n
+
+		config LV_USE_MATRIX
+			bool "Enable matrix support"
+			default n
+			select LV_USE_FLOAT
 	endmenu
 
 	menu "Font Usage"
@@ -1099,10 +1124,16 @@ menu "LVGL configuration"
 	endmenu
 
 	menu "3rd Party Libraries"
+		config LV_FS_DEFAULT_DRIVE_LETTER
+			int "Default drive letter (e.g. 65 for 'A')"
+			default 0
+			help
+				Setting a default drive letter allows skipping the driver prefix in filepaths
+
 		config LV_USE_FS_STDIO
 			bool "File system on top of stdio API"
 		config LV_FS_STDIO_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65 )"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_STDIO
 		config LV_FS_STDIO_PATH
@@ -1116,7 +1147,7 @@ menu "LVGL configuration"
 		config LV_USE_FS_POSIX
 			bool "File system on top of posix API"
 		config LV_FS_POSIX_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_POSIX
 		config LV_FS_POSIX_PATH
@@ -1130,7 +1161,7 @@ menu "LVGL configuration"
 		config LV_USE_FS_WIN32
 			bool "File system on top of Win32 API"
 		config LV_FS_WIN32_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_WIN32
 		config LV_FS_WIN32_PATH
@@ -1144,7 +1175,7 @@ menu "LVGL configuration"
 		config LV_USE_FS_FATFS
 			bool "File system on top of FatFS"
 		config LV_FS_FATFS_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_FATFS
 		config LV_FS_FATFS_CACHE_SIZE
@@ -1155,37 +1186,29 @@ menu "LVGL configuration"
 		config LV_USE_FS_MEMFS
 			bool "File system on top of memory-mapped API"
 		config LV_FS_MEMFS_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_MEMFS
 
 		config LV_USE_FS_LITTLEFS
 			bool "File system on top of littlefs API"
 		config LV_FS_LITTLEFS_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_LITTLEFS
 
 		config LV_USE_FS_ARDUINO_ESP_LITTLEFS
 			bool "File system on top of Arduino ESP littlefs API"
 		config LV_FS_ARDUINO_ESP_LITTLEFS_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
 			depends on LV_USE_FS_ARDUINO_ESP_LITTLEFS
 
 		config LV_USE_FS_ARDUINO_SD
 			bool "File system on top of Arduino SD API"
 		config LV_FS_ARDUINO_SD_LETTER
-			int "Set an upper cased letter on which the drive will accessible (e.g. 'A' i.e. 65)"
+			int "Set an upper cased letter on which the drive will accessible (e.g. 65 for 'A')"
 			default 0
-			depends on LV_USE_FS_ARDUINO_SD
-		config LV_FS_ARDUINO_SD_CS_PIN
-			int "Set the pin connected to the chip select line of the SD card"
-			default 0
-			depends on LV_USE_FS_ARDUINO_SD
-		config LV_FS_ARDUINO_SD_FREQUENCY
-			int "Set the frequency used by the chip of the SD CARD"
-			default 40000000
 			depends on LV_USE_FS_ARDUINO_SD
 
 		config LV_USE_LODEPNG
@@ -1664,7 +1687,7 @@ menu "LVGL configuration"
 			default n
 
 		config LV_USE_LIBINPUT
-    		bool "Use libinput input driver"
+			bool "Use libinput input driver"
 			default n
 
 		config LV_LIBINPUT_BSD
@@ -1714,6 +1737,15 @@ menu "LVGL configuration"
 			bool "Enable debug mode for OpenGL"
 			depends on LV_USE_OPENGLES
 			default n
+
+		config LV_USE_QNX
+			bool "Use a QNX Screen window as a display"
+			default n
+
+		config LV_QNX_BUF_COUNT
+			int
+			depends on LV_USE_QNX
+			default 1
 	endmenu
 
 	menu "Examples"

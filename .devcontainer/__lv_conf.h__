@@ -597,6 +597,9 @@
 
 /*File system interfaces for common APIs */
 
+/*Setting a default driver letter allows skipping the driver prefix in filepaths*/
+#define LV_FS_DEFAULT_DRIVE_LETTER '\0'
+
 /*API for fopen, fread, etc*/
 #define LV_USE_FS_STDIO 1
 #if LV_USE_FS_STDIO
@@ -687,6 +690,11 @@
 #if LV_USE_TINY_TTF
     /* Enable loading TTF data from files */
     #define LV_TINY_TTF_FILE_SUPPORT 0
+    /*Cache count of the glyphs in Tiny TTF. It means the number of glyphs that can be cached.
+     *The higher the value, the more memory will be used
+     *Minor performance benefit should be evident with cnt > 3
+     *For best performance count should be greater than count of glyphs in use */
+    #define LV_TINY_TTF_CACHE_GLYPH_CNT 256
 #endif
 
 /*Rlottie library*/
