@@ -6,6 +6,8 @@
 /*********************
  *      INCLUDES
  *********************/
+#include "blend/lv_draw_sw_blend_private.h"
+#include "../lv_draw_label_private.h"
 #include "lv_draw_sw.h"
 #if LV_USE_DRAW_SW
 
@@ -15,7 +17,7 @@
 #include "../../misc/lv_area.h"
 #include "../../misc/lv_style.h"
 #include "../../font/lv_font.h"
-#include "../../core/lv_refr.h"
+#include "../../core/lv_refr_private.h"
 #include "../../stdlib/lv_string.h"
 
 /*********************
@@ -100,7 +102,6 @@ static void LV_ATTRIBUTE_FAST_MEM draw_letter_cb(lv_draw_unit_t * draw_unit, lv_
                 }
                 break;
             case LV_FONT_GLYPH_FORMAT_IMAGE: {
-#if LV_USE_IMGFONT
                     lv_draw_image_dsc_t img_dsc;
                     lv_draw_image_dsc_init(&img_dsc);
                     img_dsc.rotation = 0;
@@ -109,7 +110,6 @@ static void LV_ATTRIBUTE_FAST_MEM draw_letter_cb(lv_draw_unit_t * draw_unit, lv_
                     img_dsc.opa = glyph_draw_dsc->opa;
                     img_dsc.src = glyph_draw_dsc->glyph_data;
                     lv_draw_sw_image(draw_unit, &img_dsc, glyph_draw_dsc->letter_coords);
-#endif
                 }
                 break;
             default:

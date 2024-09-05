@@ -32,6 +32,8 @@ extern "C" {
 #include "src/misc/lv_anim_timeline.h"
 #include "src/misc/lv_profiler_builtin.h"
 #include "src/misc/lv_rb.h"
+#include "src/misc/lv_utils.h"
+#include "src/misc/lv_iter.h"
 
 #include "src/tick/lv_tick.h"
 
@@ -109,6 +111,7 @@ extern "C" {
 #include "src/draw/lv_draw.h"
 #include "src/draw/lv_draw_buf.h"
 #include "src/draw/lv_draw_vector.h"
+#include "src/draw/sw/lv_draw_sw.h"
 
 #include "src/themes/lv_theme.h"
 
@@ -116,8 +119,12 @@ extern "C" {
 
 #include "src/lv_api_map_v8.h"
 #include "src/lv_api_map_v9_0.h"
+#include "src/lv_api_map_v9_1.h"
 
-#include "src/core/lv_global.h"
+#if LV_USE_PRIVATE_API
+#include "src/lvgl_private.h"
+#endif
+
 /*********************
  *      DEFINES
  *********************/

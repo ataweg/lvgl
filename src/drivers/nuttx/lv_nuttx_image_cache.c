@@ -8,10 +8,12 @@
  *********************/
 
 #include "lv_nuttx_image_cache.h"
+#include "../../core/lv_global.h"
 #include "../../../lvgl.h"
 
 #if LV_USE_NUTTX
 
+#include "../../draw/lv_draw_buf_private.h"
 #include <nuttx/mm/mm.h>
 
 /*********************
