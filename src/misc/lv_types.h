@@ -135,11 +135,13 @@ typedef struct _lv_color_filter_dsc_t lv_color_filter_dsc_t;
 
 typedef struct _lv_event_dsc_t lv_event_dsc_t;
 
+typedef struct _lv_cache_t lv_cache_t;
+
+typedef struct _lv_cache_entry_t lv_cache_entry_t;
+
 typedef struct _lv_fs_file_cache_t lv_fs_file_cache_t;
 
 typedef struct _lv_fs_path_ex_t lv_fs_path_ex_t;
-
-typedef struct _lv_fs_dir_t lv_fs_dir_t;
 
 typedef struct _lv_image_decoder_args_t lv_image_decoder_args_t;
 
@@ -186,8 +188,6 @@ typedef struct _lv_button_t lv_button_t;
 typedef struct _lv_buttonmatrix_t lv_buttonmatrix_t;
 
 typedef struct _lv_calendar_t lv_calendar_t;
-
-typedef struct _lv_calendar_chinese_t lv_calendar_chinese_t;
 
 typedef struct _lv_canvas_t lv_canvas_t;
 
@@ -326,7 +326,11 @@ typedef struct _lv_glfw_texture_t lv_glfw_texture_t;
 
 typedef uint32_t lv_prop_id_t;
 
+typedef struct _lv_array_t lv_array_t;
+
 typedef struct _lv_iter_t lv_iter_t;
+
+typedef struct _lv_circle_buf_t lv_circle_buf_t;
 
 typedef struct _lv_draw_buf_t lv_draw_buf_t;
 

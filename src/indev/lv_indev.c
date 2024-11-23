@@ -12,6 +12,7 @@
  *      INCLUDES
  ********************/
 #include "lv_indev_scroll.h"
+#include "lv_indev_gesture.h"
 #include "../display/lv_display_private.h"
 #include "../core/lv_global.h"
 #include "../core/lv_obj_private.h"
@@ -169,7 +170,7 @@ lv_indev_t * lv_indev_get_next(lv_indev_t * indev)
 
 void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data)
 {
-    LV_PROFILER_BEGIN;
+    LV_PROFILER_INDEV_BEGIN;
     lv_memzero(data, sizeof(lv_indev_data_t));
 
     /* For touchpad sometimes users don't set the last pressed coordinate on release.
@@ -194,7 +195,8 @@ void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data)
     else {
         LV_LOG_WARN("indev_read_cb is not registered");
     }
-    LV_PROFILER_END;
+
+    LV_PROFILER_INDEV_END;
 }
 
 void lv_indev_read_timer_cb(lv_timer_t * timer)
@@ -222,7 +224,7 @@ void lv_indev_read(lv_indev_t * indev)
         return;
     }
 
-    LV_PROFILER_BEGIN;
+    LV_PROFILER_INDEV_BEGIN;
 
     bool continue_reading;
     lv_indev_data_t data;
@@ -267,7 +269,7 @@ void lv_indev_read(lv_indev_t * indev)
     indev_obj_act = NULL;
 
     LV_TRACE_INDEV("finished");
-    LV_PROFILER_END;
+    LV_PROFILER_INDEV_END;
 }
 
 void lv_indev_enable(lv_indev_t * indev, bool enable)
@@ -366,6 +368,13 @@ void lv_indev_set_long_press_time(lv_indev_t * indev, uint16_t long_press_time)
     if(indev == NULL) return;
 
     indev->long_press_time = long_press_time;
+}
+
+void lv_indev_set_long_press_repeat_time(lv_indev_t * indev, uint16_t long_press_repeat_time)
+{
+    if(indev == NULL) return;
+
+    indev->long_press_repeat_time = long_press_repeat_time;
 }
 
 void lv_indev_set_scroll_limit(lv_indev_t * indev, uint8_t scroll_limit)
@@ -516,6 +525,12 @@ void lv_indev_get_vect(const lv_indev_t * indev, lv_point_t * point)
         point->x = indev->pointer.vect.x;
         point->y = indev->pointer.vect.y;
     }
+}
+
+lv_obj_t * lv_indev_get_cursor(lv_indev_t * indev)
+{
+    if(indev == NULL) return NULL;
+    return indev->cursor;
 }
 
 void lv_indev_wait_release(lv_indev_t * indev)
@@ -713,6 +728,9 @@ static void indev_pointer_proc(lv_indev_t * i, lv_indev_data_t * data)
     i->pointer.act_point.x = data->point.x;
     i->pointer.act_point.y = data->point.y;
     i->pointer.diff = data->enc_diff;
+
+    i->gesture_type = data->gesture_type;
+    i->gesture_data = data->gesture_data;
 
     /*Process the diff first as scrolling will be processed in indev_proc_release*/
     indev_proc_pointer_diff(i);
@@ -1263,12 +1281,23 @@ static void indev_proc_press(lv_indev_t * indev)
         indev->pointer.press_moved = 1;
     }
 
+    /* Send a gesture event to a potential indev cb callback, even if no object was found */
+    if(indev->gesture_type != LV_INDEV_GESTURE_NONE) {
+        lv_indev_send_event(indev, LV_EVENT_GESTURE, indev_act);
+    }
+
     if(indev_obj_act) {
         const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
+
+        if(indev->gesture_type != LV_INDEV_GESTURE_NONE) {
+            /* NOTE: hardcoded to pinch for now */
+            if(send_event(LV_EVENT_GESTURE, indev_act) == LV_RESULT_INVALID) return;
+        }
 
         if(is_enabled) {
             if(send_event(LV_EVENT_PRESSING, indev_act) == LV_RESULT_INVALID) return;
         }
+
 
         if(indev_act->wait_until_release) return;
 
@@ -1349,10 +1378,19 @@ static void indev_proc_release(lv_indev_t * indev)
         lv_timer_pause(indev->read_timer);
     }
 
+    /* Send a gesture event to a potential indev cb callback, even if no object was found */
+    if(indev->gesture_type != LV_INDEV_GESTURE_NONE) {
+        lv_indev_send_event(indev, LV_EVENT_GESTURE, indev_act);
+    }
+
     if(indev_obj_act) {
         LV_LOG_INFO("released");
 
         const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
+
+        if(is_enabled && indev->gesture_type != LV_INDEV_GESTURE_NONE) {
+            if(send_event(LV_EVENT_GESTURE, indev_act) == LV_RESULT_INVALID) return;
+        }
 
         if(is_enabled) {
             if(send_event(LV_EVENT_RELEASED, indev_act) == LV_RESULT_INVALID) return;
