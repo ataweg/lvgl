@@ -16,6 +16,7 @@
 #define LV_OS_RTTHREAD      4
 #define LV_OS_WINDOWS       5
 #define LV_OS_MQX           6
+#define LV_OS_SDL2          7
 #define LV_OS_CUSTOM        255
 
 #define LV_STDLIB_BUILTIN           0
@@ -52,11 +53,7 @@
 /* If lv_conf.h is not skipped, include it. */
 #if !defined(LV_CONF_SKIP) || defined(LV_CONF_PATH)
     #ifdef LV_CONF_PATH                           /* If there is a path defined for lv_conf.h, use it */
-        #define __LV_TO_STR_AUX(x) #x
-        #define __LV_TO_STR(x) __LV_TO_STR_AUX(x)
-        #include __LV_TO_STR(LV_CONF_PATH)
-        #undef __LV_TO_STR_AUX
-        #undef __LV_TO_STR
+        #include LV_CONF_PATH                     /* Note: Make sure to define custom CONF_PATH as a string */
     #elif defined(LV_CONF_INCLUDE_SIMPLE)         /* Or simply include lv_conf.h is enabled. */
         #include "lv_conf.h"
     #else
@@ -267,6 +264,7 @@
  * - LV_OS_RTTHREAD
  * - LV_OS_WINDOWS
  * - LV_OS_MQX
+ * - LV_OS_SDL2
  * - LV_OS_CUSTOM */
 #ifndef LV_USE_OS
     #ifdef CONFIG_LV_USE_OS
@@ -353,6 +351,18 @@
         #define LV_DRAW_LAYER_SIMPLE_BUF_SIZE CONFIG_LV_DRAW_LAYER_SIMPLE_BUF_SIZE
     #else
         #define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (24 * 1024)    /**< [bytes]*/
+    #endif
+#endif
+
+/* Limit the max allocated memory for simple and transformed layers.
+ * It should be at least `LV_DRAW_LAYER_SIMPLE_BUF_SIZE` sized but if transformed layers are also used
+ * it should be enough to store the largest widget too (width x height x 4 area).
+ * Set it to 0 to have no limit. */
+#ifndef LV_DRAW_LAYER_MAX_MEMORY
+    #ifdef CONFIG_LV_DRAW_LAYER_MAX_MEMORY
+        #define LV_DRAW_LAYER_MAX_MEMORY CONFIG_LV_DRAW_LAYER_MAX_MEMORY
+    #else
+        #define LV_DRAW_LAYER_MAX_MEMORY 0  /**< No limit by default [bytes]*/
     #endif
 #endif
 
@@ -3289,6 +3299,19 @@
             #define LV_PROFILER_CACHE 1
         #endif
     #endif
+
+    /*Enable event profiler*/
+    #ifndef LV_PROFILER_EVENT
+        #ifdef LV_KCONFIG_PRESENT
+            #ifdef CONFIG_LV_PROFILER_EVENT
+                #define LV_PROFILER_EVENT CONFIG_LV_PROFILER_EVENT
+            #else
+                #define LV_PROFILER_EVENT 0
+            #endif
+        #else
+            #define LV_PROFILER_EVENT 1
+        #endif
+    #endif
 #endif
 
 /** 1: Enable Monkey test */
@@ -3440,7 +3463,7 @@
 #endif
 #if LV_USE_FONT_MANAGER
 
-/*Font manager name max length*/
+/**Font manager name max length*/
 #ifndef LV_FONT_MANAGER_NAME_MAX_LEN
     #ifdef CONFIG_LV_FONT_MANAGER_NAME_MAX_LEN
         #define LV_FONT_MANAGER_NAME_MAX_LEN CONFIG_LV_FONT_MANAGER_NAME_MAX_LEN
@@ -3449,6 +3472,15 @@
     #endif
 #endif
 
+#endif
+
+/** Enable loading XML UIs runtime */
+#ifndef LV_USE_XML
+    #ifdef CONFIG_LV_USE_XML
+        #define LV_USE_XML CONFIG_LV_USE_XML
+    #else
+        #define LV_USE_XML	0
+    #endif
 #endif
 
 /*==================
@@ -4089,11 +4121,23 @@
 	#endif
 #endif
 
+/** High-resolution demo */
+#ifndef LV_USE_DEMO_HIGH_RES
+    #ifdef CONFIG_LV_USE_DEMO_HIGH_RES
+        #define LV_USE_DEMO_HIGH_RES CONFIG_LV_USE_DEMO_HIGH_RES
+    #else
+        #define LV_USE_DEMO_HIGH_RES        0
+    #endif
+#endif
+
 
 
 /*----------------------------------
  * End of parsing lv_conf_template.h
  -----------------------------------*/
+
+/*Fix inconsistent name*/
+#define LV_USE_ANIMIMAGE LV_USE_ANIMIMG
 
 #ifndef __ASSEMBLY__
 LV_EXPORT_CONST_INT(LV_DPI_DEF);

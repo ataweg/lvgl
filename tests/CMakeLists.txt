@@ -169,7 +169,7 @@ endif()
 
 # Options lvgl and examples are compiled with.
 set(COMPILE_OPTIONS
-    -DLV_CONF_PATH=${LVGL_TEST_DIR}/src/lv_test_conf.h
+    -DLV_CONF_PATH="${LVGL_TEST_DIR}/src/lv_test_conf.h"
     -DLV_BUILD_TEST
     ${BUILD_OPTIONS}
     ${BUILD_TARGET_DEF}
@@ -293,7 +293,7 @@ add_library(test_common
         src/test_assets/test_font_montserrat_ascii_1bpp.c
         src/test_assets/test_font_montserrat_ascii_2bpp.c
         src/test_assets/test_font_montserrat_ascii_4bpp.c
-        src/test_assets/test_font_montserrat_ascii_4bpp_compressed.c
+        src/test_assets/test_font_montserrat_ascii_3bpp_compressed.c
         src/test_assets/test_font_1_bin.c
         src/test_assets/test_font_2_bin.c
         src/test_assets/test_font_3_bin.c
