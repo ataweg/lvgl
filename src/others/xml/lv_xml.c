@@ -23,9 +23,23 @@
 #include "parsers/lv_xml_button_parser.h"
 #include "parsers/lv_xml_label_parser.h"
 #include "parsers/lv_xml_image_parser.h"
+#include "parsers/lv_xml_bar_parser.h"
 #include "parsers/lv_xml_slider_parser.h"
 #include "parsers/lv_xml_tabview_parser.h"
 #include "parsers/lv_xml_chart_parser.h"
+#include "parsers/lv_xml_table_parser.h"
+#include "parsers/lv_xml_dropdown_parser.h"
+#include "parsers/lv_xml_roller_parser.h"
+#include "parsers/lv_xml_scale_parser.h"
+#include "parsers/lv_xml_buttonmatrix_parser.h"
+#include "parsers/lv_xml_spangroup_parser.h"
+#include "parsers/lv_xml_textarea_parser.h"
+#include "parsers/lv_xml_keyboard_parser.h"
+#include "parsers/lv_xml_arc_parser.h"
+#include "parsers/lv_xml_checkbox_parser.h"
+#include "parsers/lv_xml_canvas_parser.h"
+#include "parsers/lv_xml_calendar_parser.h"
+#include "parsers/lv_xml_event_parser.h"
 #include "../../libs/expat/expat.h"
 #include "../../draw/lv_draw_image.h"
 
@@ -46,8 +60,6 @@ static void view_end_element_handler(void * user_data, const char * name);
 /**********************
  *  STATIC VARIABLES
  **********************/
-static lv_ll_t font_ll;
-static lv_ll_t image_ll;
 
 /**********************
  *      MACROS
@@ -59,31 +71,15 @@ static lv_ll_t image_ll;
 
 void lv_xml_init(void)
 {
-    lv_ll_init(&font_ll, sizeof(lv_xml_font_t));
-    lv_ll_init(&image_ll, sizeof(lv_xml_image_t));
-
-#if LV_FONT_MONTSERRAT_14
-    lv_xml_register_font("lv_montserrat_14", &lv_font_montserrat_14);
-#endif
-
-#if LV_FONT_MONTSERRAT_16
-    lv_xml_register_font("lv_montserrat_16", &lv_font_montserrat_16);
-#endif
-
-#if LV_FONT_MONTSERRAT_18
-    lv_xml_register_font("lv_montserrat_18", &lv_font_montserrat_18);
-#endif
-
-#if LV_FONT_MONTSERRAT_20
-    lv_xml_register_font("lv_montserrat_20", &lv_font_montserrat_20);
-#endif
-
     lv_xml_component_init();
+
+    lv_xml_register_font(NULL, "lv_font_default", lv_font_get_default());
 
     lv_xml_widget_register("lv_obj", lv_xml_obj_create, lv_xml_obj_apply);
     lv_xml_widget_register("lv_button", lv_xml_button_create, lv_xml_button_apply);
     lv_xml_widget_register("lv_label", lv_xml_label_create, lv_xml_label_apply);
     lv_xml_widget_register("lv_image", lv_xml_image_create, lv_xml_image_apply);
+    lv_xml_widget_register("lv_bar", lv_xml_bar_create, lv_xml_bar_apply);
     lv_xml_widget_register("lv_slider", lv_xml_slider_create, lv_xml_slider_apply);
     lv_xml_widget_register("lv_tabview", lv_xml_tabview_create, lv_xml_tabview_apply);
     lv_xml_widget_register("lv_tabview-tab_bar", lv_xml_tabview_tab_bar_create, lv_xml_tabview_tab_bar_apply);
@@ -91,10 +87,34 @@ void lv_xml_init(void)
     lv_xml_widget_register("lv_chart", lv_xml_chart_create, lv_xml_chart_apply);
     lv_xml_widget_register("lv_chart-cursor", lv_xml_chart_cursor_create, lv_xml_chart_cursor_apply);
     lv_xml_widget_register("lv_chart-series", lv_xml_chart_series_create, lv_xml_chart_series_apply);
+    lv_xml_widget_register("lv_chart-axis", lv_xml_chart_axis_create, lv_xml_chart_axis_apply);
+    lv_xml_widget_register("lv_table", lv_xml_table_create, lv_xml_table_apply);
+    lv_xml_widget_register("lv_table-column", lv_xml_table_column_create, lv_xml_table_column_apply);
+    lv_xml_widget_register("lv_table-cell", lv_xml_table_cell_create, lv_xml_table_cell_apply);
+    lv_xml_widget_register("lv_dropdown", lv_xml_dropdown_create, lv_xml_dropdown_apply);
+    lv_xml_widget_register("lv_dropdown-list", lv_xml_dropdown_list_create, lv_xml_dropdown_list_apply);
+    lv_xml_widget_register("lv_roller", lv_xml_roller_create, lv_xml_roller_apply);
+    lv_xml_widget_register("lv_scale", lv_xml_scale_create, lv_xml_scale_apply);
+    lv_xml_widget_register("lv_scale-section", lv_xml_scale_section_create, lv_xml_scale_section_apply);
+    lv_xml_widget_register("lv_spangroup", lv_xml_spangroup_create, lv_xml_spangroup_apply);
+    lv_xml_widget_register("lv_spangroup-span", lv_xml_spangroup_span_create, lv_xml_spangroup_span_apply);
+    lv_xml_widget_register("lv_buttonmatrix", lv_xml_buttonmatrix_create, lv_xml_buttonmatrix_apply);
+    lv_xml_widget_register("lv_textarea", lv_xml_textarea_create, lv_xml_textarea_apply);
+    lv_xml_widget_register("lv_keyboard", lv_xml_keyboard_create, lv_xml_keyboard_apply);
+    lv_xml_widget_register("lv_arc", lv_xml_arc_create, lv_xml_arc_apply);
+    lv_xml_widget_register("lv_checkbox", lv_xml_checkbox_create, lv_xml_checkbox_apply);
+    lv_xml_widget_register("lv_canvas", lv_xml_canvas_create, lv_xml_canvas_apply);
+    lv_xml_widget_register("lv_calendar", lv_xml_calendar_create, lv_xml_calendar_apply);
+    lv_xml_widget_register("lv_calendar-header_arrow", lv_xml_calendar_header_arrow_create,
+                           lv_xml_calendar_header_arrow_apply);
+    lv_xml_widget_register("lv_calendar-header_dropdown", lv_xml_calendar_header_dropdown_create,
+                           lv_xml_calendar_header_dropdown_apply);
+
+    lv_xml_widget_register("lv_event-call_function", lv_xml_event_call_function_create, lv_xml_event_call_function_apply);
 }
 
-lv_obj_t * lv_xml_create_from_ctx(lv_obj_t * parent, lv_xml_component_ctx_t * parent_ctx, lv_xml_component_ctx_t * ctx,
-                                  const char ** attrs)
+void * lv_xml_create_from_ctx(lv_obj_t * parent, lv_xml_component_ctx_t * parent_ctx, lv_xml_component_ctx_t * ctx,
+                              const char ** attrs)
 {
     /* Initialize the parser state */
     lv_xml_parser_state_t state;
@@ -132,7 +152,7 @@ lv_obj_t * lv_xml_create_from_ctx(lv_obj_t * parent, lv_xml_component_ctx_t * pa
     return state.view;
 }
 
-lv_obj_t * lv_xml_create(lv_obj_t * parent, const char * name, const char ** attrs)
+void * lv_xml_create(lv_obj_t * parent, const char * name, const char ** attrs)
 {
     lv_obj_t * item = NULL;
 
@@ -142,6 +162,7 @@ lv_obj_t * lv_xml_create(lv_obj_t * parent, const char * name, const char ** att
         lv_xml_parser_state_t state;
         lv_xml_parser_state_init(&state);
         state.parent = parent;
+        state.ctx.name = "";
         state.item = p->create_cb(&state, attrs);
         if(attrs) {
             p->apply_cb(&state, attrs);
@@ -156,33 +177,173 @@ lv_obj_t * lv_xml_create(lv_obj_t * parent, const char * name, const char ** att
     }
 
     /* If it isn't a component either then it is unknown */
-    LV_LOG_WARN("'%s' in not a known widget, element, or component", name);
+    LV_LOG_WARN("'%s' is not a known widget, element, or component", name);
     return NULL;
 }
 
-
-lv_result_t lv_xml_register_font(const char * name, const lv_font_t * font)
+lv_result_t lv_xml_register_font(lv_xml_component_ctx_t * ctx, const char * name, const lv_font_t * font)
 {
-    lv_xml_font_t * f = lv_ll_ins_head(&font_ll);
+
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) {
+        LV_LOG_WARN("No component found to register font `%s`", name);
+        return LV_RESULT_INVALID;
+    }
+
+    lv_xml_font_t * f;
+    LV_LL_READ(&ctx->font_ll, f) {
+        if(lv_streq(f->name, name)) {
+            LV_LOG_INFO("Font %s is already registered. Don't register it again.", name);
+            return LV_RESULT_OK;
+        }
+    }
+
+    f = lv_ll_ins_head(&ctx->font_ll);
     f->name = lv_strdup(name);
     f->font = font;
 
     return LV_RESULT_OK;
 }
 
-const lv_font_t * lv_xml_get_font(const char * name)
+const lv_font_t * lv_xml_get_font(lv_xml_component_ctx_t * ctx, const char * name)
 {
     lv_xml_font_t * f;
-    LV_LL_READ(&font_ll, f) {
-        if(lv_streq(f->name, name)) return f->font;
+    if(ctx) {
+        LV_LL_READ(&ctx->font_ll, f) {
+            if(lv_streq(f->name, name)) return f->font;
+        }
     }
 
+    /*If not found in the component check the global space*/
+    if(ctx == NULL || !lv_streq(ctx->name, "globals")) {
+        ctx = lv_xml_component_get_ctx("globals");
+        if(ctx) {
+            LV_LL_READ(&ctx->font_ll, f) {
+                if(lv_streq(f->name, name)) return f->font;
+            }
+        }
+    }
+
+    LV_LOG_WARN("No font was found with name \"%s\". Using LV_FONT_DEFAULT instead.", name);
+    return lv_font_get_default();
+}
+
+lv_result_t lv_xml_register_subject(lv_xml_component_ctx_t * ctx, const char * name, lv_subject_t * subject)
+{
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) {
+        LV_LOG_WARN("No component found to register subject `%s`", name);
+        return LV_RESULT_INVALID;
+    }
+
+
+    lv_xml_subject_t * s;
+    LV_LL_READ(&ctx->subjects_ll, s) {
+        if(lv_streq(s->name, name)) {
+            LV_LOG_INFO("Subject %s is already registered. Don't register it again.", name);
+            return LV_RESULT_OK;
+        }
+    }
+
+    s = lv_ll_ins_head(&ctx->subjects_ll);
+    s->name = lv_strdup(name);
+    s->subject = subject;
+
+    return LV_RESULT_OK;
+}
+
+lv_subject_t * lv_xml_get_subject(lv_xml_component_ctx_t * ctx, const char * name)
+{
+    lv_xml_subject_t * s;
+    if(ctx) {
+        LV_LL_READ(&ctx->subjects_ll, s) {
+            if(lv_streq(s->name, name)) return s->subject;
+        }
+    }
+
+    /*If not found in the component check the global space*/
+    if(ctx == NULL || !lv_streq(ctx->name, "globals")) {
+        ctx = lv_xml_component_get_ctx("globals");
+        if(ctx) {
+            LV_LL_READ(&ctx->subjects_ll, s) {
+                if(lv_streq(s->name, name)) return s->subject;
+            }
+        }
+    }
+
+    LV_LOG_WARN("No subject was found with name \"%s\".", name);
     return NULL;
 }
 
-lv_result_t lv_xml_register_image(const char * name, const void * src)
+lv_result_t lv_xml_register_const(lv_xml_component_ctx_t * ctx, const char * name, const char * value)
 {
-    lv_xml_image_t * img = lv_ll_ins_head(&image_ll);
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) {
+        LV_LOG_WARN("No component found to register constant `%s`", name);
+        return LV_RESULT_INVALID;
+    }
+
+    lv_xml_const_t * cnst;
+    LV_LL_READ(&ctx->const_ll, cnst) {
+        if(lv_streq(cnst->name, name)) {
+            LV_LOG_INFO("Const %s is already registered. Don't register it again.", name);
+            return LV_RESULT_OK;
+        }
+    }
+
+    cnst = lv_ll_ins_head(&ctx->const_ll);
+
+    cnst->name = lv_strdup(name);
+    cnst->value = lv_strdup(value);
+
+    return LV_RESULT_OK;
+}
+
+const char * lv_xml_get_const(lv_xml_component_ctx_t * ctx, const char * name)
+{
+
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) return NULL;
+
+    lv_xml_const_t * cnst;
+    if(ctx) {
+        LV_LL_READ(&ctx->const_ll, cnst) {
+            if(lv_streq(cnst->name, name)) return cnst->value;
+        }
+    }
+
+    /*If not found in the component check the global space*/
+    if(ctx == NULL || !lv_streq(ctx->name, "globals")) {
+        ctx = lv_xml_component_get_ctx("globals");
+        if(ctx) {
+            LV_LL_READ(&ctx->const_ll, cnst) {
+                if(lv_streq(cnst->name, name)) return cnst->value;
+            }
+        }
+    }
+
+    LV_LOG_WARN("No constant was found with name \"%s\".", name);
+    return NULL;
+}
+
+
+lv_result_t lv_xml_register_image(lv_xml_component_ctx_t * ctx, const char * name, const void * src)
+{
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) {
+        LV_LOG_WARN("No component found to register image `%s`", name);
+        return LV_RESULT_INVALID;
+    }
+
+    lv_xml_image_t * img;
+    LV_LL_READ(&ctx->image_ll, img) {
+        if(lv_streq(img->name, name)) {
+            LV_LOG_INFO("Image %s is already registered. Don't register it again.", name);
+            return LV_RESULT_OK;
+        }
+    }
+
+    img = lv_ll_ins_head(&ctx->image_ll);
     img->name = lv_strdup(name);
     if(lv_image_src_get_type(src) == LV_IMAGE_SRC_FILE) {
         img->src = lv_strdup(src);
@@ -194,13 +355,79 @@ lv_result_t lv_xml_register_image(const char * name, const void * src)
     return LV_RESULT_OK;
 }
 
-const void * lv_xml_get_image(const char * name)
+const void * lv_xml_get_image(lv_xml_component_ctx_t * ctx, const char * name)
 {
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) return NULL;
+
     lv_xml_image_t * img;
-    LV_LL_READ(&image_ll, img) {
-        if(lv_streq(img->name, name)) return img->src;
+    if(ctx) {
+        LV_LL_READ(&ctx->image_ll, img) {
+            if(lv_streq(img->name, name)) return img->src;
+        }
     }
 
+    /*If not found in the component check the global space*/
+    if(ctx == NULL || !lv_streq(ctx->name, "globals")) {
+        ctx = lv_xml_component_get_ctx("globals");
+        if(ctx) {
+            LV_LL_READ(&ctx->image_ll, img) {
+                if(lv_streq(img->name, name)) return img->src;
+            }
+        }
+    }
+
+    LV_LOG_WARN("No image was found with name \"%s\"", name);
+    return NULL;
+}
+
+lv_result_t lv_xml_register_event_cb(lv_xml_component_ctx_t * ctx, const char * name, lv_event_cb_t cb)
+{
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) {
+        LV_LOG_WARN("No component found to register event `%s`", name);
+        return LV_RESULT_INVALID;
+    }
+
+    lv_xml_event_cb_t * e;
+    LV_LL_READ(&ctx->event_ll, e) {
+        if(lv_streq(e->name, name)) {
+            LV_LOG_INFO("Event_cb %s is already registered. Don't register it again.", name);
+            return LV_RESULT_OK;
+        }
+    }
+
+    e = lv_ll_ins_head(&ctx->event_ll);
+    e->name = lv_strdup(name);
+    e->cb = cb;
+
+    return LV_RESULT_OK;
+}
+
+
+lv_event_cb_t lv_xml_get_event_cb(lv_xml_component_ctx_t * ctx, const char * name)
+{
+    if(ctx == NULL) ctx = lv_xml_component_get_ctx("globals");
+    if(ctx == NULL) return NULL;
+
+    lv_xml_event_cb_t * e;
+    if(ctx) {
+        LV_LL_READ(&ctx->event_ll, e) {
+            if(lv_streq(e->name, name)) return e->cb;
+        }
+    }
+
+    /*If not found in the component check the global space*/
+    if(ctx == NULL || !lv_streq(ctx->name, "globals")) {
+        ctx = lv_xml_component_get_ctx("globals");
+        if(ctx) {
+            LV_LL_READ(&ctx->event_ll, e) {
+                if(lv_streq(e->name, name)) return e->cb;
+            }
+        }
+    }
+
+    LV_LOG_WARN("No event was found with name \"%s\"", name);
     return NULL;
 }
 
@@ -281,16 +508,12 @@ static void resolve_consts(const char ** item_attrs, lv_xml_component_ctx_t * ct
         if(value[0] == '#') {
             const char * value_clean = &value[1];
 
-            lv_xml_const_t * c;
-            LV_LL_READ(&ctx->const_ll, c) {
-                if(lv_streq(c->name, value_clean)) {
-                    item_attrs[i + 1] = c->value;
-                    break;
-                }
+            const char * const_value = lv_xml_get_const(ctx, value_clean);
+            if(const_value) {
+                item_attrs[i + 1] = const_value;
             }
-
             /*If the const attribute is not provide don't set it*/
-            if(c == NULL) {
+            else {
                 item_attrs[i] = "";
                 item_attrs[i + 1] = "";
             }
@@ -345,7 +568,7 @@ static void view_start_element_handler(void * user_data, const char * name, cons
          *now it has the button theme styles. However if it were a real widget
          *it had e.g. `my_widget_class` so the button's theme wouldn't apply on it.
          *Removing the style will ensure a better preview*/
-        if(state->ctx.is_widget) lv_obj_remove_style_all(item);
+        if(state->ctx.is_widget && is_view) lv_obj_remove_style_all(item);
 
         /*Apply the attributes from e.g. `<lv_slider value="30" x="20">`*/
         if(item) {
@@ -361,7 +584,7 @@ static void view_start_element_handler(void * user_data, const char * name, cons
 
     /* If it isn't a component either then it is unknown */
     if(item == NULL) {
-        LV_LOG_WARN("'%s' in not a known widget, element, or component", name);
+        LV_LOG_WARN("'%s' is not a known widget, element, or component", name);
         return;
     }
 

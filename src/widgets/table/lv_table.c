@@ -66,7 +66,7 @@ const lv_obj_class_t lv_table_class  = {
     .editable = LV_OBJ_CLASS_EDITABLE_TRUE,
     .group_def = LV_OBJ_CLASS_GROUP_DEF_TRUE,
     .instance_size = sizeof(lv_table_t),
-    .name = "table",
+    .name = "lv_table",
 };
 /**********************
  *      MACROS
@@ -315,7 +315,7 @@ void lv_table_set_column_width(lv_obj_t * obj, uint32_t col_id, int32_t w)
     refr_size_form_row(obj, 0);
 }
 
-void lv_table_add_cell_ctrl(lv_obj_t * obj, uint32_t row, uint32_t col, lv_table_cell_ctrl_t ctrl)
+void lv_table_set_cell_ctrl(lv_obj_t * obj, uint32_t row, uint32_t col, lv_table_cell_ctrl_t ctrl)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
@@ -338,6 +338,7 @@ void lv_table_add_cell_ctrl(lv_obj_t * obj, uint32_t row, uint32_t col, lv_table
     }
 
     table->cell_data[cell]->ctrl |= ctrl;
+    refr_cell_size(obj, row, col);
 }
 
 void lv_table_clear_cell_ctrl(lv_obj_t * obj, uint32_t row, uint32_t col, lv_table_cell_ctrl_t ctrl)
@@ -696,11 +697,13 @@ static void draw_main(lv_event_t * e)
     lv_draw_rect_dsc_t rect_dsc_def;
     lv_draw_rect_dsc_t rect_dsc_act; /*Passed to the event to modify it*/
     lv_draw_rect_dsc_init(&rect_dsc_def);
+    rect_dsc_def.base.layer = layer;
     lv_obj_init_draw_rect_dsc(obj, LV_PART_ITEMS, &rect_dsc_def);
 
     lv_draw_label_dsc_t label_dsc_def;
     lv_draw_label_dsc_t label_dsc_act;  /*Passed to the event to modify it*/
     lv_draw_label_dsc_init(&label_dsc_def);
+    label_dsc_def.base.layer = layer;
     lv_obj_init_draw_label_dsc(obj, LV_PART_ITEMS, &label_dsc_def);
     obj->state = state_ori;
     obj->skip_trans = 0;
@@ -799,7 +802,9 @@ static void draw_main(lv_event_t * e)
                 obj->state = cell_state;
                 obj->skip_trans = 1;
                 lv_draw_rect_dsc_init(&rect_dsc_act);
+                rect_dsc_act.base.layer = layer;
                 lv_draw_label_dsc_init(&label_dsc_act);
+                label_dsc_act.base.layer = layer;
                 lv_obj_init_draw_rect_dsc(obj, LV_PART_ITEMS, &rect_dsc_act);
                 lv_obj_init_draw_label_dsc(obj, LV_PART_ITEMS, &label_dsc_act);
                 obj->state = state_ori;
@@ -828,7 +833,10 @@ static void draw_main(lv_event_t * e)
 
                 /*Align the content to the middle if not cropped*/
                 bool crop = ctrl & LV_TABLE_CELL_CTRL_TEXT_CROP;
-                if(crop) txt_flags = LV_TEXT_FLAG_EXPAND;
+                if(crop) {
+                    txt_flags = LV_TEXT_FLAG_EXPAND;
+                    label_dsc_act.flag |= LV_TEXT_FLAG_EXPAND;
+                }
 
                 lv_text_get_size(&txt_size, table->cell_data[cell]->txt, label_dsc_def.font,
                                  label_dsc_act.letter_space, label_dsc_act.line_space,
@@ -1084,18 +1092,35 @@ static void get_cell_area(lv_obj_t * obj, uint32_t row, uint32_t col, lv_area_t 
     for(c = 0; c < col; c++) {
         area->x1 += table->col_w[c];
     }
+    /* Traverse the current row from the first until the penultimate column.
+     * Increment the offset if the cell has the LV_TABLE_CELL_CTRL_MERGE_RIGHT control,
+     * exit the traversal when the current cell control is not LV_TABLE_CELL_CTRL_MERGE_RIGHT */
+    uint32_t col_merge = 0;
+    int32_t offset = 0;
+    for(col_merge = 0; col_merge + col < table->col_cnt - 1; col_merge++) {
+        lv_table_cell_t * next_cell_data = table->cell_data[row * table->col_cnt + col_merge];
 
+        if(is_cell_empty(next_cell_data)) break;
+
+        lv_table_cell_ctrl_t ctrl = (lv_table_cell_ctrl_t) next_cell_data->ctrl;
+        if(ctrl & LV_TABLE_CELL_CTRL_MERGE_RIGHT) {
+            offset += table->col_w[col + col_merge + 1];
+        }
+        else {
+            break;
+        }
+    }
     bool rtl = lv_obj_get_style_base_dir(obj, LV_PART_MAIN) == LV_BASE_DIR_RTL;
     if(rtl) {
         area->x1 += lv_obj_get_scroll_x(obj);
         int32_t w = lv_obj_get_width(obj);
         area->x2 = w - area->x1 - lv_obj_get_style_pad_right(obj, 0);
-        area->x1 = area->x2 - table->col_w[col];
+        area->x1 = area->x2 - (table->col_w[col] + offset);
     }
     else {
         area->x1 -= lv_obj_get_scroll_x(obj);
         area->x1 += lv_obj_get_style_pad_left(obj, 0);
-        area->x2 = area->x1 + table->col_w[col] - 1;
+        area->x2 = area->x1 + (table->col_w[col] + offset) - 1;
     }
 
     uint32_t r;

@@ -17,10 +17,25 @@ extern "C" {
 #include "lv_vg_lite_utils.h"
 
 #if LV_USE_DRAW_VG_LITE
+#include <float.h>
 
 /*********************
  *      DEFINES
  *********************/
+
+#if LV_USE_VG_LITE_THORVG
+/**
+* It is found that thorvg cannot handle large coordinates well.
+* When the coordinates are larger than 4096, the calculation of tvgSwRle module will overflow in 32-bit system.
+* So we use FLT_MAX and FLT_MIN to write the mark to bounding_box to tell vg_lite_tvg not to add clip path to the current path.
+*/
+#define PATH_COORD_MAX FLT_MAX
+#define PATH_COORD_MIN FLT_MIN
+#else
+/*  18 bits is enough to represent the coordinates of path bounding box */
+#define PATH_COORD_MAX (1 << 18)
+#define PATH_COORD_MIN (-PATH_COORD_MAX)
+#endif
 
 #define LV_VG_LITE_PATH_SET_OP_CODE(PTR, TYPE, OP_CODE) (*((TYPE*)PTR) = (OP_CODE))
 #define LV_VG_LITE_PATH_GET_OP_CODE(PTR) (*((uint8_t*)PTR))

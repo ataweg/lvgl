@@ -19,8 +19,16 @@
 /*********************
  *      DEFINES
  *********************/
+
+/**Perform linear animations in max 1024 steps. Used in `path_cb`s*/
 #define LV_ANIM_RESOLUTION 1024
+
+/**log2(LV_ANIM_RESOLUTION)*/
 #define LV_ANIM_RES_SHIFT 10
+
+/**In an anim. time this bit indicates that the value is speed, and not time*/
+#define LV_ANIM_SPEED_MASK 0x80000000
+
 #define state LV_GLOBAL_DEFAULT()->anim_state
 #define anim_ll_p &(state.anim_ll)
 
@@ -36,9 +44,9 @@ static void anim_mark_list_change(void);
 static void anim_completed_handler(lv_anim_t * a);
 static int32_t lv_anim_path_cubic_bezier(const lv_anim_t * a, int32_t x1,
                                          int32_t y1, int32_t x2, int32_t y2);
-static uint32_t convert_speed_to_time(uint32_t speed, int32_t start, int32_t end);
+static void lv_anim_pause_for_internal(lv_anim_t * a, uint32_t ms);
 static void resolve_time(lv_anim_t * a);
-static bool remove_concurrent_anims(lv_anim_t * a_current);
+static bool remove_concurrent_anims(const lv_anim_t * a_current);
 static void remove_anim(void * a);
 
 /**********************
@@ -87,6 +95,11 @@ lv_anim_t * lv_anim_start(const lv_anim_t * a)
 {
     LV_TRACE_ANIM("begin");
 
+    /*Do not let two animations for the same 'var' with the same 'exec_cb'*/
+    if(a->early_apply && (a->exec_cb || a->custom_exec_cb)) {
+        remove_concurrent_anims(a);
+    }
+
     /*Add the new animation to the animation linked list*/
     lv_anim_t * new_anim = lv_ll_ins_head(anim_ll_p);
     LV_ASSERT_MALLOC(new_anim);
@@ -97,6 +110,7 @@ lv_anim_t * lv_anim_start(const lv_anim_t * a)
     if(a->var == a) new_anim->var = new_anim;
     new_anim->run_round = state.anim_run_round;
     new_anim->last_timer_run = lv_tick_get();
+    new_anim->is_paused = false;
 
     /*Set the start value*/
     if(new_anim->early_apply) {
@@ -109,14 +123,12 @@ lv_anim_t * lv_anim_start(const lv_anim_t * a)
 
         resolve_time(new_anim);
 
-        /*Do not let two animations for the same 'var' with the same 'exec_cb'*/
-        if(a->exec_cb || a->custom_exec_cb) remove_concurrent_anims(new_anim);
-
+        new_anim->current_value = new_anim->path_cb(new_anim);
         if(new_anim->exec_cb) {
-            new_anim->exec_cb(new_anim->var, new_anim->start_value);
+            new_anim->exec_cb(new_anim->var, new_anim->current_value);
         }
         if(new_anim->custom_exec_cb) {
-            new_anim->custom_exec_cb(new_anim, new_anim->start_value);
+            new_anim->custom_exec_cb(new_anim, new_anim->current_value);
         }
     }
 
@@ -218,7 +230,7 @@ uint32_t lv_anim_speed_clamped(uint32_t speed, uint32_t min_time, uint32_t max_t
     min_time = (min_time + 5) / 10;
     max_time = (max_time + 5) / 10;
 
-    return 0x80000000 + (max_time << 20) + (min_time << 10) + speed;
+    return LV_ANIM_SPEED_MASK + (max_time << 20) + (min_time << 10) + speed;
 
 }
 
@@ -361,11 +373,6 @@ void lv_anim_set_duration(lv_anim_t * a, uint32_t duration)
     a->duration = duration;
 }
 
-void lv_anim_set_time(lv_anim_t * a, uint32_t duration)
-{
-    lv_anim_set_duration(a, duration);
-}
-
 void lv_anim_set_delay(lv_anim_t * a, uint32_t delay)
 {
     a->act_time = -(int32_t)(delay);
@@ -483,9 +490,50 @@ lv_anim_t * lv_anim_custom_get(lv_anim_t * a, lv_anim_custom_exec_cb_t exec_cb)
     return lv_anim_get(a ? a->var : NULL, (lv_anim_exec_xcb_t)exec_cb);
 }
 
+uint32_t lv_anim_resolve_speed(uint32_t speed_or_time, int32_t start, int32_t end)
+{
+    /*It was a simple time*/
+    if((speed_or_time & LV_ANIM_SPEED_MASK) == 0) return speed_or_time;
+
+    uint32_t d    = LV_ABS(start - end);
+    uint32_t speed = speed_or_time & 0x3FF;
+    uint32_t time = (d * 100) / speed; /*Speed is in 10 units per sec*/
+    uint32_t max_time = (speed_or_time >> 20) & 0x3FF;
+    uint32_t min_time = (speed_or_time >> 10) & 0x3FF;
+
+    return LV_CLAMP(min_time * 10, time, max_time * 10);
+}
+
+bool lv_anim_is_paused(lv_anim_t * a)
+{
+    LV_ASSERT_NULL(a);
+    return a->is_paused;
+}
+
+void lv_anim_pause(lv_anim_t * a)
+{
+    LV_ASSERT_NULL(a);
+    lv_anim_pause_for_internal(a, LV_ANIM_PAUSE_FOREVER);
+}
+
+void lv_anim_pause_for(lv_anim_t * a, uint32_t ms)
+{
+    LV_ASSERT_NULL(a);
+    lv_anim_pause_for_internal(a, ms);
+}
+
+void lv_anim_resume(lv_anim_t * a)
+{
+    LV_ASSERT_NULL(a);
+    a->is_paused = false;
+    a->pause_duration = 0;
+    a->run_round = state.anim_run_round;
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
+
 /**
  * Periodically handle the animations.
  * @param param unused
@@ -498,11 +546,23 @@ static void anim_timer(lv_timer_t * param)
     state.anim_run_round = state.anim_run_round ? false : true;
 
     lv_anim_t * a = lv_ll_get_head(anim_ll_p);
-
     while(a != NULL) {
         uint32_t elaps = lv_tick_elaps(a->last_timer_run);
-        a->act_time += elaps;
 
+        if(a->is_paused) {
+            const uint32_t time_paused = lv_tick_elaps(a->pause_time);
+            const bool is_pause_over = a->pause_duration != LV_ANIM_PAUSE_FOREVER && time_paused >= a->pause_duration;
+
+            if(is_pause_over) {
+                const uint32_t pause_overrun = time_paused - a->pause_duration;
+                a->is_paused = false;
+                a->act_time += pause_overrun;
+                a->run_round = !state.anim_run_round;
+            }
+        }
+        else {
+            a->act_time += elaps;
+        }
         a->last_timer_run = lv_tick_get();
 
         /*It can be set by `lv_anim_delete()` typically in `end_cb`. If set then an animation delete
@@ -511,9 +571,8 @@ static void anim_timer(lv_timer_t * param)
          */
         state.anim_list_changed = false;
 
-        if(a->run_round != state.anim_run_round) {
+        if(!a->is_paused && a->run_round != state.anim_run_round) {
             a->run_round = state.anim_run_round; /*The list readying might be reset so need to know which anim has run already*/
-
             /*The animation will run now for the first time. Call `start_cb`*/
             if(!a->start_cb_called && a->act_time >= 0) {
 
@@ -646,26 +705,20 @@ static int32_t lv_anim_path_cubic_bezier(const lv_anim_t * a, int32_t x1, int32_
     return new_value;
 }
 
-static uint32_t convert_speed_to_time(uint32_t speed_or_time, int32_t start, int32_t end)
+static void lv_anim_pause_for_internal(lv_anim_t * a, uint32_t ms)
 {
-    /*It was a simple time*/
-    if((speed_or_time & 0x80000000) == 0) return speed_or_time;
 
-    uint32_t d    = LV_ABS(start - end);
-    uint32_t speed = speed_or_time & 0x3FF;
-    uint32_t time = (d * 100) / speed; /*Speed is in 10 units per sec*/
-    uint32_t max_time = (speed_or_time >> 20) & 0x3FF;
-    uint32_t min_time = (speed_or_time >> 10) & 0x3FF;
-
-    return LV_CLAMP(min_time * 10, time, max_time * 10);
+    a->is_paused = true;
+    a->pause_time = lv_tick_get();
+    a->pause_duration = ms;
 }
 
 static void resolve_time(lv_anim_t * a)
 {
-    a->duration = convert_speed_to_time(a->duration, a->start_value, a->end_value);
-    a->reverse_duration = convert_speed_to_time(a->reverse_duration, a->start_value, a->end_value);
-    a->reverse_delay = convert_speed_to_time(a->reverse_delay, a->start_value, a->end_value);
-    a->repeat_delay = convert_speed_to_time(a->repeat_delay, a->start_value, a->end_value);
+    a->duration = lv_anim_resolve_speed(a->duration, a->start_value, a->end_value);
+    a->reverse_duration = lv_anim_resolve_speed(a->reverse_duration, a->start_value, a->end_value);
+    a->reverse_delay = lv_anim_resolve_speed(a->reverse_delay, a->start_value, a->end_value);
+    a->repeat_delay = lv_anim_resolve_speed(a->repeat_delay, a->start_value, a->end_value);
 }
 
 /**
@@ -674,7 +727,7 @@ static void resolve_time(lv_anim_t * a)
  * @param a_current     the current animation, use its var and exec_cb as reference to know what to remove
  * @return              true: at least one animation was delete
  */
-static bool remove_concurrent_anims(lv_anim_t * a_current)
+static bool remove_concurrent_anims(const lv_anim_t * a_current)
 {
     if(a_current->exec_cb == NULL && a_current->custom_exec_cb == NULL) return false;
 

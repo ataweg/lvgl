@@ -39,7 +39,7 @@ const lv_obj_class_t lv_calendar_header_dropdown_class = {
     .width_def = LV_PCT(100),
     .height_def = LV_SIZE_CONTENT,
     .constructor_cb = my_constructor,
-    .name = "calendar-header-dropdown",
+    .name = "lv_calendar_header_dropdown",
 };
 
 static const char * month_list = "01\n02\n03\n04\n05\n06\n07\n08\n09\n10\n11\n12";
@@ -61,7 +61,7 @@ static const char * year_list = {
  *   GLOBAL FUNCTIONS
  **********************/
 
-lv_obj_t * lv_calendar_header_dropdown_create(lv_obj_t * parent)
+lv_obj_t * lv_calendar_add_header_dropdown(lv_obj_t * parent)
 {
     lv_obj_t * obj = lv_obj_class_create_obj(&lv_calendar_header_dropdown_class, parent);
     lv_obj_class_init_obj(obj);
@@ -174,10 +174,10 @@ static void value_changed_event_cb(lv_event_t * e)
     const uint32_t year = (year_p[0] - '0') * 1000 + (year_p[1] - '0') * 100 + (year_p[2] - '0') * 10 +
                           (year_p[3] - '0');
 
-    lv_dropdown_set_selected(year_dd, year - cur_date->year);
+    lv_dropdown_set_selected(year_dd, year - cur_date->year, LV_ANIM_OFF);
 
     lv_obj_t * month_dd = lv_obj_get_child(header, 1);
-    lv_dropdown_set_selected(month_dd, cur_date->month - 1);
+    lv_dropdown_set_selected(month_dd, cur_date->month - 1, LV_ANIM_OFF);
 }
 
 #endif /*LV_USE_CALENDAR_HEADER_ARROW*/

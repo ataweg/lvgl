@@ -171,6 +171,7 @@ void lv_draw_buf_clear(lv_draw_buf_t * draw_buf, const lv_area_t * a)
     if(a == NULL) {
         uint8_t * buf = lv_draw_buf_goto_xy(draw_buf, 0, 0);
         lv_memzero(buf, header->h * stride);
+        lv_draw_buf_flush_cache(draw_buf, a);
         LV_PROFILER_DRAW_END;
         return;
     }
@@ -205,6 +206,7 @@ void lv_draw_buf_clear(lv_draw_buf_t * draw_buf, const lv_area_t * a)
         lv_memzero(buf, line_length);
         buf += stride;
     }
+    lv_draw_buf_flush_cache(draw_buf, a);
     LV_PROFILER_DRAW_END;
 }
 
@@ -610,11 +612,16 @@ void lv_draw_buf_clear_flag(lv_draw_buf_t * draw_buf, lv_image_flags_t flag)
     draw_buf->header.flags &= ~flag;
 }
 
-void lv_draw_buf_from_image(lv_draw_buf_t * buf, const lv_image_dsc_t * img)
+lv_result_t lv_draw_buf_from_image(lv_draw_buf_t * buf, const lv_image_dsc_t * img)
 {
-    lv_draw_buf_init(buf, img->header.w, img->header.h, img->header.cf, img->header.stride,
-                     (void *)img->data, img->data_size);
+    const lv_result_t res = lv_draw_buf_init(buf, img->header.w, img->header.h, img->header.cf, img->header.stride,
+                                             (void *)img->data, img->data_size);
+    if(res != LV_RESULT_OK) {
+        return res;
+    }
+
     buf->header.flags = img->header.flags;
+    return res;
 }
 
 void lv_draw_buf_to_image(const lv_draw_buf_t * buf, lv_image_dsc_t * img)
