@@ -1098,26 +1098,6 @@ static lv_fs_res_t fs_read_file_at(lv_fs_file_t * f, uint32_t pos, void * buff, 
 
 static lv_result_t decompress_image(lv_image_decoder_dsc_t * dsc, const lv_image_compressed_t * compressed)
 {
-    /* At least one compression method must be enabled */
-#if (LV_USE_LZ4 || LV_USE_RLE)
-    /* Check if the decompression method is enabled and valid */
-    if(compressed->method == LV_IMAGE_COMPRESS_RLE) {
-#if !LV_USE_RLE
-        LV_LOG_WARN("RLE decompression is not enabled");
-        return LV_RESULT_INVALID;
-#endif
-    }
-    else if(compressed->method == LV_IMAGE_COMPRESS_LZ4) {
-#if !LV_USE_LZ4
-        LV_LOG_WARN("LZ4 decompression is not enabled");
-        return LV_RESULT_INVALID;
-#endif
-    }
-    else {
-        LV_LOG_WARN("Unknown compression method: %" LV_PRIu32, compressed->method);
-        return LV_RESULT_INVALID;
-    }
-
     /*Need to store decompressed data to decoder to free on close*/
     decoder_data_t * decoder_data = get_decoder_data(dsc);
     if(decoder_data == NULL) {
@@ -1127,7 +1107,8 @@ static lv_result_t decompress_image(lv_image_decoder_dsc_t * dsc, const lv_image
     uint8_t * img_data;
     uint32_t out_len = compressed->decompressed_size;
     uint32_t input_len = compressed->compressed_size;
-    uint32_t len = 0;
+    LV_UNUSED(input_len);
+    LV_UNUSED(out_len);
 
     lv_draw_buf_t * decompressed = lv_draw_buf_create_ex(image_cache_draw_buf_handlers, dsc->header.w, dsc->header.h,
                                                          dsc->header.cf,
@@ -1153,38 +1134,45 @@ static lv_result_t decompress_image(lv_image_decoder_dsc_t * dsc, const lv_image
             pixel_byte = 2;
         else
             pixel_byte = (lv_color_format_get_bpp(dsc->header.cf) + 7) >> 3;
-
         const uint8_t * input = compressed->data;
         uint8_t * output = img_data;
-
+        uint32_t len;
         len = lv_rle_decompress(input, input_len, output, out_len, pixel_byte);
-#endif /* LV_USE_RLE */
+        if(len != compressed->decompressed_size) {
+            LV_LOG_WARN("Decompress failed: %" LV_PRIu32 ", got: %" LV_PRIu32, out_len, len);
+            lv_draw_buf_destroy(decompressed);
+            return LV_RESULT_INVALID;
+        }
+#else
+        LV_LOG_WARN("RLE decompress is not enabled");
+        lv_draw_buf_destroy(decompressed);
+        return LV_RESULT_INVALID;
+#endif
     }
     else if(compressed->method == LV_IMAGE_COMPRESS_LZ4) {
 #if LV_USE_LZ4
         const char * input = (const char *)compressed->data;
         char * output = (char *)img_data;
-
-        int ret = LZ4_decompress_safe(input, output, (int)input_len, (int)out_len);
-        if(ret >= 0) {
-            /* Cast is safe because of the above check */
-            len = (uint32_t)ret;
+        int len;
+        len = LZ4_decompress_safe(input, output, input_len, out_len);
+        if(len < 0 || (uint32_t)len != compressed->decompressed_size) {
+            LV_LOG_WARN("Decompress failed: %" LV_PRId32 ", got: %" LV_PRId32, out_len, len);
+            lv_draw_buf_destroy(decompressed);
+            return LV_RESULT_INVALID;
         }
-#endif /* LV_USE_LZ4 */
+#else
+        LV_LOG_WARN("LZ4 decompress is not enabled");
+        lv_draw_buf_destroy(decompressed);
+        return LV_RESULT_INVALID;
+#endif
     }
-
-    if(len != compressed->decompressed_size) {
-        LV_LOG_WARN("Decompress failed: %" LV_PRIu32 ", got: %" LV_PRIu32, out_len, len);
+    else {
+        LV_UNUSED(img_data);
+        LV_LOG_WARN("Unknown compression method: %d", compressed->method);
         lv_draw_buf_destroy(decompressed);
         return LV_RESULT_INVALID;
     }
 
     decoder_data->decompressed = decompressed; /*Free on decoder close*/
     return LV_RESULT_OK;
-#else
-    LV_UNUSED(dsc);
-    LV_UNUSED(compressed);
-    LV_LOG_WARN("At least one compression method must be enabled");
-    return LV_RESULT_INVALID;
-#endif /* (LV_USE_LZ4 || LV_USE_RLE) */
 }

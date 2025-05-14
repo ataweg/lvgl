@@ -1,7 +1,6 @@
-.. _xml_animations:
+.. _xml_animation:
 
 ==========
 Animations
 ==========
 
-TODO

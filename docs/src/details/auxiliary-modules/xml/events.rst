@@ -11,11 +11,8 @@ Overview
 
 Right now, only a single event type is supported to call user-defined callbacks.
 
-
-
 Usage
 *****
-
 
 Call function
 -------------
@@ -25,21 +22,20 @@ User-defined functions can be called like this:
 .. code-block:: xml
 
     <view>
-        <lv_button width="200" height="100">
-            <lv_event-call_function callback="my_callback_1" trigger="clicked" user_data="some_text"/>
-            <lv_label text="Hello"/>
-        </lv_button>
+      <lv_button width="200" height="100">
+        <lv_event-call_function callback="my_callback_1" trigger="clicked" user_data="some_text"/>
+        <lv_label text="Hello"/>
+      </lv_button>
     </view>
 
 When the XML is loaded at runtime, the callback name needs to be mapped to a function by using:
-:cpp:expr:`lv_xml_register_event_cb("my_callback_1", an_event_handler)`.
+``lv_xml_register_event_cb("my_callback_1", an_event_handler)``
 
 The callback should have the standard LVGL event callback signature:
 ``void an_event_handler(lv_event_t * e);``
 
-In the exported C code, it is assumed that there is a function with the exact name
-specified as the callback name.  For example, ``callback="my_callback_1"`` will be
-exported as:
+In the exported C code, it is assumed that there is a function with the exact name specified as the callback name.
+For example, ``callback="my_callback_1"`` will be exported as:
 
 .. code-block:: c
 
@@ -49,11 +45,9 @@ exported as:
 
 For triggers, all LVGL event types are supported with straightforward mapping:
 
-.. What is a trigger?
-
-- :cpp:enumerator:`LV_EVENT_ALL`: ``"all"``
-- :cpp:enumerator:`LV_EVENT_CLICKED`: ``"clicked"``
-- :cpp:enumerator:`LV_EVENT_PRESSED`: ``"pressed"``
+- :cpp:expr:`LV_EVENT_ALL`: ``"all"``
+- :cpp:expr:`LV_EVENT_CLICKED`: ``"clicked"``
+- :cpp:expr:`LV_EVENT_PRESSED`: ``"pressed"``
 - etc.
 
 The ``user_data`` is optional. If omitted, ``NULL`` will be passed.
