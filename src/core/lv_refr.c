@@ -559,7 +559,9 @@ static void refr_sync_areas(void)
         /**
          * @todo Resize SDL window will trigger crash because of sync_area is larger than disp_area
          */
-        lv_area_intersect(sync_area, sync_area, &disp_area);
+        if(!lv_area_intersect(sync_area, sync_area, &disp_area)) {
+            continue;
+        }
 #if LV_DRAW_TRANSFORM_USE_MATRIX
         if(lv_display_get_matrix_rotation(disp_refr)) {
             lv_display_rotate_area(disp_refr, sync_area);
@@ -696,9 +698,15 @@ static void refr_area(const lv_area_t * area_p, int32_t y_offset)
         /*In direct mode and full mode the the buffer area is always the whole screen, not considering rotation*/
         layer->buf_area.x1 = 0;
         layer->buf_area.y1 = 0;
-        layer->buf_area.x2 = lv_display_get_original_horizontal_resolution(disp_refr) - 1;
-        layer->buf_area.y2 = lv_display_get_original_vertical_resolution(disp_refr) - 1;
-        layer_reshape_draw_buf(layer, layer->draw_buf->header.stride);
+        if(lv_display_get_matrix_rotation(disp_refr)) {
+            layer->buf_area.x2 = lv_display_get_original_horizontal_resolution(disp_refr) - 1;
+            layer->buf_area.y2 = lv_display_get_original_vertical_resolution(disp_refr) - 1;
+        }
+        else {
+            layer->buf_area.x2 = lv_display_get_horizontal_resolution(disp_refr) - 1;
+            layer->buf_area.y2 = lv_display_get_vertical_resolution(disp_refr) - 1;
+        }
+        layer_reshape_draw_buf(layer, disp_refr->stride_is_auto ? LV_STRIDE_AUTO : layer->draw_buf->header.stride);
     }
 
     /*Try to divide the area to smaller tiles*/
@@ -788,21 +796,48 @@ static void refr_configured_layer(lv_layer_t * layer)
         if(rotation != LV_DISPLAY_ROTATION_0) {
             lv_display_rotate_area(disp_refr, &layer->phy_clip_area);
 
-            /* The screen rotation direction defined by LVGL is opposite to the drawing angle */
+            /**
+             * The screen rotation direction defined by LVGL is opposite to the drawing angle.
+             * Use direct matrix assignment to reduce precision loss and improve efficiency.
+             */
             switch(rotation) {
                 case LV_DISPLAY_ROTATION_90:
-                    lv_matrix_rotate(&layer->matrix, 270);
-                    lv_matrix_translate(&layer->matrix, -disp_refr->ver_res, 0);
+                    /**
+                     * lv_matrix_rotate(&layer->matrix, 270);
+                     * lv_matrix_translate(&layer->matrix, -disp_refr->ver_res, 0);
+                     */
+                    layer->matrix.m[0][0] = 0;
+                    layer->matrix.m[0][1] = 1;
+                    layer->matrix.m[0][2] = 0;
+                    layer->matrix.m[1][0] = -1;
+                    layer->matrix.m[1][1] = 0;
+                    layer->matrix.m[1][2] = disp_refr->ver_res;
                     break;
 
                 case LV_DISPLAY_ROTATION_180:
-                    lv_matrix_rotate(&layer->matrix, 180);
-                    lv_matrix_translate(&layer->matrix, -disp_refr->hor_res, -disp_refr->ver_res);
+                    /**
+                     * lv_matrix_rotate(&layer->matrix, 180);
+                     * lv_matrix_translate(&layer->matrix, -disp_refr->hor_res, -disp_refr->ver_res);
+                     */
+                    layer->matrix.m[0][0] = -1;
+                    layer->matrix.m[0][1] = 0;
+                    layer->matrix.m[0][2] = disp_refr->hor_res;
+                    layer->matrix.m[1][0] = 0;
+                    layer->matrix.m[1][1] = -1;
+                    layer->matrix.m[1][2] = disp_refr->ver_res;
                     break;
 
                 case LV_DISPLAY_ROTATION_270:
-                    lv_matrix_rotate(&layer->matrix, 90);
-                    lv_matrix_translate(&layer->matrix, 0, -disp_refr->hor_res);
+                    /**
+                     * lv_matrix_rotate(&layer->matrix, 90);
+                     * lv_matrix_translate(&layer->matrix, 0, -disp_refr->hor_res);
+                     */
+                    layer->matrix.m[0][0] = 0;
+                    layer->matrix.m[0][1] = -1;
+                    layer->matrix.m[0][2] = disp_refr->hor_res;
+                    layer->matrix.m[1][0] = 1;
+                    layer->matrix.m[1][1] = 0;
+                    layer->matrix.m[1][2] = 0;
                     break;
 
                 default:
