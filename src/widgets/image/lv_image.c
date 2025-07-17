@@ -1,5 +1,5 @@
 /**
- * @file lv_img.c
+ * @file lv_image.c
  *
  */
 
@@ -365,6 +365,22 @@ void lv_image_set_pivot(lv_obj_t * obj, int32_t x, int32_t y)
     a.x2 += obj->coords.x1;
     a.y2 += obj->coords.y1;
     lv_obj_invalidate_area(obj, &a);
+}
+
+void lv_image_set_pivot_x(lv_obj_t * obj, int32_t x)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+
+    lv_image_t * img = (lv_image_t *)obj;
+    lv_image_set_pivot(obj, x, img->pivot.y);
+}
+
+void lv_image_set_pivot_y(lv_obj_t * obj, int32_t y)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+
+    lv_image_t * img = (lv_image_t *)obj;
+    lv_image_set_pivot(obj, img->pivot.x, y);
 }
 
 void lv_image_set_scale(lv_obj_t * obj, uint32_t zoom)
@@ -820,6 +836,11 @@ static void draw_image(lv_event_t * e)
 
         if(img->h == 0 || img->w == 0) return;
         if(img->scale_x == 0 || img->scale_y == 0) return;
+        if(img->src == NULL) {
+            /*Do not need to draw image when src is NULL*/
+            LV_LOG_TRACE("image source is NULL");
+            return;
+        }
 
         lv_layer_t * layer = lv_event_get_layer(e);
 
@@ -884,11 +905,26 @@ static void draw_image(lv_event_t * e)
             label_dsc.base.layer = layer;
             lv_obj_init_draw_label_dsc(obj, LV_PART_MAIN, &label_dsc);
             label_dsc.text = img->src;
-            lv_draw_label(layer, &label_dsc, &obj->coords);
-        }
-        else if(img->src == NULL) {
-            /*Do not need to draw image when src is NULL*/
-            LV_LOG_WARN("image source is NULL");
+            lv_area_t * coords;
+            lv_area_t aligned_coords;
+            const bool image_area_is_same_as_coords = img->w == lv_area_get_width(&obj->coords)
+                                                      && img->h == lv_area_get_height(&obj->coords);
+            const bool needs_inner_alignment = img->align > LV_IMAGE_ALIGN_TOP_LEFT
+                                               && !image_area_is_same_as_coords;
+            const bool has_offset = img->offset.x || img->offset.y;
+            const bool inner_alignment_is_transforming = img->align >= LV_IMAGE_ALIGN_AUTO_TRANSFORM;
+            if((needs_inner_alignment || has_offset) && !inner_alignment_is_transforming) {
+                lv_point_t text_size;
+                lv_text_get_size(&text_size, label_dsc.text, label_dsc.font, label_dsc.letter_space,
+                                 label_dsc.line_space, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+                lv_area_set(&aligned_coords, 0, 0, text_size.x, text_size.y);
+                lv_area_align(&obj->coords, &aligned_coords, img->align, img->offset.x, img->offset.y);
+                coords = &aligned_coords;
+            }
+            else {
+                coords = &obj->coords;
+            }
+            lv_draw_label(layer, &label_dsc, coords);
         }
         else {
             /*Trigger the error handler of image draw*/

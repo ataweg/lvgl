@@ -155,6 +155,16 @@ void lv_bar_set_range(lv_obj_t * obj, int32_t min, int32_t max)
     lv_obj_invalidate(obj);
 }
 
+void lv_bar_set_min_value(lv_obj_t * obj, int32_t min)
+{
+    lv_bar_set_range(obj, min, lv_bar_get_max_value(obj));
+}
+
+void lv_bar_set_max_value(lv_obj_t * obj, int32_t max)
+{
+    lv_bar_set_range(obj, lv_bar_get_min_value(obj), max);
+}
+
 void lv_bar_set_mode(lv_obj_t * obj, lv_bar_mode_t mode)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
@@ -398,6 +408,12 @@ static void draw_indic(lv_event_t * e)
     bool hor_need_reversed = hor && base_dir == LV_BASE_DIR_RTL;
     bool reversed = bar->val_reversed ^ hor_need_reversed;
 
+    /* An area with width 0 is {x1 = 0 x2 = -1} so subtracting 1 from `anim_cur_value_x` causes...
+     *     anim_start_value_x = 0   anim_cur_value_x = 0   to be {x1 = 0 x2 = -1  } which is width 0
+     *     anim_start_value_x = 0   anim_cur_value_x = 300 to be {x1 = 0 x2 =  299} which is width 300
+     */
+    anim_cur_value_x -= 1;
+
     if(reversed) {
         /*Swap axes*/
         int32_t * tmp;
@@ -414,7 +430,7 @@ static void draw_indic(lv_event_t * e)
         *axis1 += anim_start_value_x;
     }
     else {
-        *axis1 = *axis2 - anim_cur_value_x + 1;
+        *axis1 = *axis2 - anim_cur_value_x;
         *axis2 -= anim_start_value_x;
     }
 
