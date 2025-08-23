@@ -123,6 +123,7 @@ extern "C" {
 #include "src/draw/lv_draw_buf.h"
 #include "src/draw/lv_draw_vector.h"
 #include "src/draw/sw/lv_draw_sw_utils.h"
+#include "src/draw/eve/lv_draw_eve_target.h"
 
 #include "src/themes/lv_theme.h"
 
@@ -132,6 +133,7 @@ extern "C" {
 #include "src/lv_api_map_v9_0.h"
 #include "src/lv_api_map_v9_1.h"
 #include "src/lv_api_map_v9_2.h"
+#include "src/lv_api_map_v9_3.h"
 
 #if LV_USE_PRIVATE_API
 #include "src/lvgl_private.h"

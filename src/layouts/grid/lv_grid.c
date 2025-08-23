@@ -66,43 +66,43 @@ static uint32_t count_tracks(const int32_t * templ);
 
 static inline const int32_t * get_col_dsc(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_column_dsc_array(obj, 0);
+    return lv_obj_get_style_grid_column_dsc_array(obj, LV_PART_MAIN);
 }
 static inline const int32_t * get_row_dsc(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_row_dsc_array(obj, 0);
+    return lv_obj_get_style_grid_row_dsc_array(obj, LV_PART_MAIN);
 }
 static inline int32_t get_col_pos(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_cell_column_pos(obj, 0);
+    return lv_obj_get_style_grid_cell_column_pos(obj, LV_PART_MAIN);
 }
 static inline int32_t get_row_pos(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_cell_row_pos(obj, 0);
+    return lv_obj_get_style_grid_cell_row_pos(obj, LV_PART_MAIN);
 }
 static inline int32_t get_col_span(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_cell_column_span(obj, 0);
+    return lv_obj_get_style_grid_cell_column_span(obj, LV_PART_MAIN);
 }
 static inline int32_t get_row_span(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_cell_row_span(obj, 0);
+    return lv_obj_get_style_grid_cell_row_span(obj, LV_PART_MAIN);
 }
 static inline lv_grid_align_t get_cell_col_align(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_cell_x_align(obj, 0);
+    return lv_obj_get_style_grid_cell_x_align(obj, LV_PART_MAIN);
 }
 static inline lv_grid_align_t get_cell_row_align(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_cell_y_align(obj, 0);
+    return lv_obj_get_style_grid_cell_y_align(obj, LV_PART_MAIN);
 }
 static inline lv_grid_align_t get_grid_col_align(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_column_align(obj, 0);
+    return lv_obj_get_style_grid_column_align(obj, LV_PART_MAIN);
 }
 static inline lv_grid_align_t get_grid_row_align(lv_obj_t * obj)
 {
-    return lv_obj_get_style_grid_row_align(obj, 0);
+    return lv_obj_get_style_grid_row_align(obj, LV_PART_MAIN);
 }
 static inline int32_t get_margin_hor(lv_obj_t * obj)
 {
@@ -189,12 +189,9 @@ static void grid_update(lv_obj_t * cont, void * user_data)
     LV_LOG_INFO("update %p container", (void *)cont);
     LV_UNUSED(user_data);
 
-    //    const int32_t * col_templ = get_col_dsc(cont);
-    //    const int32_t * row_templ = get_row_dsc(cont);
-    //    if(col_templ == NULL || row_templ == NULL) return;
-
     lv_grid_calc_t c;
-    calc(cont, &c);
+    lv_result_t res = calc(cont, &c);
+    if(res != LV_RESULT_OK) return;
 
     item_repos_hint_t hint;
     lv_memzero(&hint, sizeof(hint));

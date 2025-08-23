@@ -25,10 +25,10 @@
 #define LV_STDLIB_RTTHREAD          3
 #define LV_STDLIB_CUSTOM            255
 
-#define LV_DRAW_SW_ASM_NONE         0
-#define LV_DRAW_SW_ASM_NEON         1
-#define LV_DRAW_SW_ASM_HELIUM       2
-#define LV_DRAW_SW_ASM_CUSTOM       255
+#define LV_DRAW_SW_ASM_NONE             0
+#define LV_DRAW_SW_ASM_NEON             1
+#define LV_DRAW_SW_ASM_HELIUM           2
+#define LV_DRAW_SW_ASM_CUSTOM           255
 
 #define LV_NEMA_HAL_CUSTOM          0
 #define LV_NEMA_HAL_STM32           1
@@ -959,6 +959,24 @@
             #define LV_VG_LITE_STROKE_CACHE_CNT 32
         #endif
     #endif
+
+    /** Remove VLC_OP_CLOSE path instruction (Workaround for NXP) **/
+    #ifndef LV_VG_LITE_DISABLE_VLC_OP_CLOSE
+        #ifdef CONFIG_LV_VG_LITE_DISABLE_VLC_OP_CLOSE
+            #define LV_VG_LITE_DISABLE_VLC_OP_CLOSE CONFIG_LV_VG_LITE_DISABLE_VLC_OP_CLOSE
+        #else
+            #define LV_VG_LITE_DISABLE_VLC_OP_CLOSE 0
+        #endif
+    #endif
+
+    /** Disable linear gradient extension for some older versions of drivers. */
+    #ifndef LV_VG_LITE_DISABLE_LINEAR_GRADIENT_EXT
+        #ifdef CONFIG_LV_VG_LITE_DISABLE_LINEAR_GRADIENT_EXT
+            #define LV_VG_LITE_DISABLE_LINEAR_GRADIENT_EXT CONFIG_LV_VG_LITE_DISABLE_LINEAR_GRADIENT_EXT
+        #else
+            #define LV_VG_LITE_DISABLE_LINEAR_GRADIENT_EXT 0
+        #endif
+    #endif
 #endif
 
 /** Accelerate blends, fills, etc. with STM32 DMA2D */
@@ -1017,6 +1035,27 @@
         #endif
     #endif
 #endif
+
+/* Use EVE FT81X GPU. */
+#ifndef LV_USE_DRAW_EVE
+    #ifdef CONFIG_LV_USE_DRAW_EVE
+        #define LV_USE_DRAW_EVE CONFIG_LV_USE_DRAW_EVE
+    #else
+        #define LV_USE_DRAW_EVE 0
+    #endif
+#endif
+
+#if LV_USE_DRAW_EVE
+    /* EVE_GEN value: 2, 3, or 4 */
+    #ifndef LV_DRAW_EVE_EVE_GENERATION
+        #ifdef CONFIG_LV_DRAW_EVE_EVE_GENERATION
+            #define LV_DRAW_EVE_EVE_GENERATION CONFIG_LV_DRAW_EVE_EVE_GENERATION
+        #else
+            #define LV_DRAW_EVE_EVE_GENERATION 4
+        #endif
+    #endif
+#endif
+
 /*=======================
  * FEATURE CONFIGURATION
  *=======================*/
@@ -4077,6 +4116,25 @@
             #define LV_USE_NUTTX_MOUSE_MOVE_STEP    1
         #endif
     #endif
+
+    /*NuttX trace file and its path*/
+    #ifndef LV_USE_NUTTX_TRACE_FILE
+        #ifdef CONFIG_LV_USE_NUTTX_TRACE_FILE
+            #define LV_USE_NUTTX_TRACE_FILE CONFIG_LV_USE_NUTTX_TRACE_FILE
+        #else
+            #define LV_USE_NUTTX_TRACE_FILE 0
+        #endif
+    #endif
+    #if LV_USE_NUTTX_TRACE_FILE
+        #ifndef LV_NUTTX_TRACE_FILE_PATH
+            #ifdef CONFIG_LV_NUTTX_TRACE_FILE_PATH
+                #define LV_NUTTX_TRACE_FILE_PATH CONFIG_LV_NUTTX_TRACE_FILE_PATH
+            #else
+                #define LV_NUTTX_TRACE_FILE_PATH "/data/lvgl-trace.log"
+            #endif
+        #endif
+    #endif
+
 #endif
 
 /** Driver for /dev/dri/card */

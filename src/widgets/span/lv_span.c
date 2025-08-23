@@ -199,6 +199,32 @@ void lv_span_set_text(lv_span_t * span, const char * text)
 #endif
 }
 
+void lv_span_set_text_fmt(lv_span_t * span, const char * fmt, ...)
+{
+    if(span == NULL || fmt == NULL) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    char * text = lv_text_set_text_vfmt(fmt, args);
+    LV_ASSERT_MALLOC(text);
+    if(text == NULL) {
+        va_end(args);
+        return;
+    }
+
+    va_end(args);
+
+    if(span->txt && !span->static_flag) {
+        lv_free(span->txt);
+    }
+
+    span->static_flag = 0;
+    span->txt = text;
+}
+
+
 void lv_spangroup_set_span_text(lv_obj_t * obj, lv_span_t * span, const char * text)
 {
     lv_span_set_text(span, text);
@@ -231,6 +257,33 @@ void lv_span_set_text_static(lv_span_t * span, const char * text)
 void lv_spangroup_set_span_text_static(lv_obj_t * obj, lv_span_t * span, const char * text)
 {
     lv_span_set_text_static(span, text);
+    lv_spangroup_refresh(obj);
+}
+
+void lv_spangroup_set_span_text_fmt(lv_obj_t * obj, lv_span_t * span, const char * fmt, ...)
+{
+    if(span == NULL || fmt == NULL) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    char * text = lv_text_set_text_vfmt(fmt, args);
+    LV_ASSERT_MALLOC(text);
+    if(text == NULL) {
+        va_end(args);
+        return;
+    }
+
+    va_end(args);
+
+    if(span->txt && !span->static_flag) {
+        lv_free(span->txt);
+    }
+
+    span->static_flag = 0;
+    span->txt = text;
+
     lv_spangroup_refresh(obj);
 }
 
@@ -449,10 +502,13 @@ uint32_t lv_spangroup_get_expand_width(lv_obj_t * obj, uint32_t max_width)
     }
 
     uint32_t width = LV_COORD_IS_PCT(spans->indent) ? 0 : spans->indent;
-    lv_span_t * cur_span;
     int32_t letter_space = 0;
+    lv_span_t * cur_span;
     LV_LL_READ(&spans->child_ll, cur_span) {
+        uint32_t letter;
+        uint32_t letter_next;
         const lv_font_t * font = lv_span_get_style_text_font(obj, cur_span);
+
         letter_space = lv_span_get_style_text_letter_space(obj, cur_span);
         uint32_t j = 0;
         const char * cur_txt = cur_span->txt;
@@ -461,8 +517,8 @@ uint32_t lv_spangroup_get_expand_width(lv_obj_t * obj, uint32_t max_width)
             if(max_width > 0 && width >= max_width) {
                 return max_width;
             }
-            uint32_t letter      = lv_text_encoded_next(cur_txt, &j);
-            uint32_t letter_next = lv_text_encoded_next(&cur_txt[j], NULL);
+            letter      = lv_text_encoded_next(cur_txt, &j);
+            letter_next = lv_text_encoded_next(&cur_txt[j], NULL);
             uint32_t letter_w = lv_font_get_glyph_width(font, letter, letter_next);
             width = width + letter_w + letter_space;
         }
@@ -793,10 +849,15 @@ static bool lv_text_get_snippet(const char * txt, const lv_font_t * font,
     real_max_width++;
 #endif
 
-    uint32_t ofs = lv_text_get_next_line(txt, LV_TEXT_LEN_MAX, font, letter_space, real_max_width, use_width, flag);
+    lv_text_attributes_t attributes = {0};
+    attributes.letter_space = letter_space;
+    attributes.max_width = real_max_width;
+    attributes.text_flags = flag;
+
+    uint32_t ofs = lv_text_get_next_line(txt, LV_TEXT_LEN_MAX, font, use_width, &attributes);
     *end_ofs = ofs;
 
-    if(txt[ofs] == '\0' && *use_width < max_width && !(ofs && (txt[ofs - 1] == '\n' || txt[ofs - 1] == '\r'))) {
+    if(txt[ofs] == '\0' && *use_width < attributes.max_width && !(ofs && (txt[ofs - 1] == '\n' || txt[ofs - 1] == '\r'))) {
         return false;
     }
     else {
@@ -889,7 +950,7 @@ static int32_t lv_span_get_style_text_decor(lv_obj_t * par, lv_span_t * span)
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(&span->style, LV_STYLE_TEXT_DECOR, &value);
     if(res != LV_STYLE_RES_FOUND) {
-        decor = (lv_text_decor_t)lv_obj_get_style_text_decor(par, LV_PART_MAIN);;
+        decor = (lv_text_decor_t)lv_obj_get_style_text_decor(par, LV_PART_MAIN);
     }
     else {
         decor = (int32_t)value.num;
@@ -949,7 +1010,7 @@ static void lv_draw_span(lv_obj_t * obj, lv_layer_t * layer)
 
     /* init draw variable */
     lv_text_flag_t txt_flag = LV_TEXT_FLAG_NONE;
-    int32_t line_space = lv_obj_get_style_text_line_space(obj, LV_PART_MAIN);;
+    int32_t line_space = lv_obj_get_style_text_line_space(obj, LV_PART_MAIN);
     int32_t max_width = lv_area_get_width(&coords);
     int32_t indent = convert_indent_pct(obj, max_width);
     int32_t max_w  = max_width - indent; /* first line need minus indent */
@@ -1185,6 +1246,7 @@ static void lv_draw_span(lv_obj_t * obj, lv_layer_t * layer)
             label_draw_dsc.text = bidi_txt;
             label_draw_dsc.text_length = txt_bytes;
             label_draw_dsc.letter_space = pinfo->letter_space;
+            label_draw_dsc.line_space = line_space;
             label_draw_dsc.decor = lv_span_get_style_text_decor(obj, pinfo->span);
             lv_area_t a;
             a.x1 = pos.x;
@@ -1201,6 +1263,7 @@ static void lv_draw_span(lv_obj_t * obj, lv_layer_t * layer)
 
             bool need_draw_ellipsis = false;
             uint32_t dot_width = 0;
+
             /* deal overflow */
             if(ellipsis_valid) {
                 uint32_t dot_letter_w = lv_font_get_glyph_width(pinfo->font, '.', '.');
