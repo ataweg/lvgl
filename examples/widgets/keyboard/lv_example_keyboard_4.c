@@ -146,7 +146,7 @@ void remove_event(lv_obj_t* obj, lv_event_cb_t event_cb )
 LV_FONT_DECLARE( font_montserrat_ger_14 )
 lv_style_t my_style;
 
-void lv_example_keyboard_3(void)
+void lv_example_keyboard_4(void)
 {
     /*Create a keyboard to use it with an of the text areas*/
     lv_obj_t * kb = lv_keyboard_create(lv_scr_act());
