@@ -164,8 +164,6 @@ typedef struct _lv_cache_entry_t lv_cache_entry_t;
 
 typedef struct _lv_fs_file_cache_t lv_fs_file_cache_t;
 
-typedef struct _lv_fs_path_ex_t lv_fs_path_ex_t;
-
 typedef struct _lv_image_decoder_args_t lv_image_decoder_args_t;
 
 typedef struct _lv_image_cache_data_t lv_image_cache_data_t;
@@ -278,7 +276,13 @@ typedef struct _lv_win_t lv_win_t;
 
 typedef struct _lv_3dtexture_t lv_3dtexture_t;
 
+typedef struct _lv_gltf_t lv_gltf_t;
+
+typedef struct _lv_gltf_model_t lv_gltf_model_t;
+
 typedef struct _lv_observer_t lv_observer_t;
+
+typedef struct _lv_subject_increment_dsc_t lv_subject_increment_dsc_t;
 
 typedef struct _lv_monkey_config_t lv_monkey_config_t;
 
@@ -287,8 +291,6 @@ typedef struct _lv_ime_pinyin_t lv_ime_pinyin_t;
 typedef struct _lv_file_explorer_t lv_file_explorer_t;
 
 typedef struct _lv_barcode_t lv_barcode_t;
-
-typedef struct _lv_gif_t lv_gif_t;
 
 typedef struct _lv_qrcode_t lv_qrcode_t;
 
@@ -308,11 +310,9 @@ typedef struct _lv_vector_fill_dsc_t lv_vector_fill_dsc_t;
 
 typedef struct _lv_vector_stroke_dsc_t lv_vector_stroke_dsc_t;
 
-typedef struct _lv_vector_draw_dsc_t lv_vector_draw_dsc_t;
+typedef struct _lv_vector_path_ctx_t lv_vector_path_ctx_t;
 
-typedef struct _lv_draw_vector_task_dsc_t lv_draw_vector_task_dsc_t;
-
-typedef struct _lv_vector_dsc_t lv_vector_dsc_t;
+typedef struct _lv_draw_vector_dsc_t lv_draw_vector_dsc_t;
 
 typedef struct _lv_xkb_t lv_xkb_t;
 
@@ -346,8 +346,8 @@ typedef struct _lv_rlottie_t lv_rlottie_t;
 
 typedef struct _lv_ffmpeg_player_t lv_ffmpeg_player_t;
 
-typedef struct _lv_glfw_window_t lv_glfw_window_t;
-typedef struct _lv_glfw_texture_t lv_glfw_texture_t;
+typedef struct _lv_opengles_window_t lv_opengles_window_t;
+typedef struct _lv_opengles_window_texture_t lv_opengles_window_texture_t;
 
 typedef uint32_t lv_prop_id_t;
 
@@ -377,6 +377,8 @@ typedef struct _lv_sysmon_perf_info_t lv_sysmon_perf_info_t;
 typedef struct _lv_xml_component_scope_t lv_xml_component_scope_t;
 
 typedef struct _lv_xml_parser_state_t lv_xml_parser_state_t;
+
+typedef struct _lv_xml_load_t lv_xml_load_t;
 
 #if LV_USE_EVDEV
 typedef struct _lv_evdev_discovery_t lv_evdev_discovery_t;

@@ -164,6 +164,15 @@ lv_scroll_snap_t lv_xml_scroll_snap_to_enum(const char * txt)
     return 0; /*Return 0 in lack of a better option. */
 }
 
+lv_scrollbar_mode_t lv_xml_scrollbar_mode_to_enum(const char * txt)
+{
+    if(lv_streq("off", txt)) return LV_SCROLLBAR_MODE_OFF;
+    else if(lv_streq("on", txt)) return LV_SCROLLBAR_MODE_ON;
+    else if(lv_streq("active", txt)) return LV_SCROLLBAR_MODE_ACTIVE;
+    else if(lv_streq("auto", txt)) return LV_SCROLLBAR_MODE_AUTO;
+    return 0; /*Return 0 in lack of a better option. */
+}
+
 lv_flex_flow_t lv_xml_flex_flow_to_enum(const char * txt)
 {
     if(lv_streq("column", txt)) return LV_FLEX_FLOW_COLUMN;
@@ -336,6 +345,8 @@ lv_style_prop_t lv_xml_style_prop_to_enum(const char * txt)
     else if(lv_streq(txt, "max_height")) return LV_STYLE_MAX_HEIGHT;
     else if(lv_streq(txt, "length")) return LV_STYLE_LENGTH;
     else if(lv_streq(txt, "radius")) return LV_STYLE_RADIUS;
+    else if(lv_streq(txt, "radial_offset")) return LV_STYLE_RADIAL_OFFSET;
+    else if(lv_streq(txt, "align")) return LV_STYLE_ALIGN;
 
     else if(lv_streq(txt, "pad_left")) return LV_STYLE_PAD_LEFT;
     else if(lv_streq(txt, "pad_right")) return LV_STYLE_PAD_RIGHT;

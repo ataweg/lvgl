@@ -36,7 +36,7 @@ extern "C" {
 typedef enum {
     LV_FONT_GLYPH_FORMAT_NONE   = 0, /**< Maybe not visible*/
 
-    /**< Legacy simple formats with no byte padding at end of the lines*/
+    /**< Legacy simple formats*/
     LV_FONT_GLYPH_FORMAT_A1     = 0x01, /**< 1 bit per pixel*/
     LV_FONT_GLYPH_FORMAT_A2     = 0x02, /**< 2 bit per pixel*/
     LV_FONT_GLYPH_FORMAT_A3     = 0x03, /**< 3 bit per pixel*/
@@ -71,7 +71,7 @@ typedef struct {
     int32_t outline_stroke_width;   /**< used with freetype vector fonts - width of the letter border */
 
     union {
-        uint32_t index;       /**< Unicode code point*/
+        uint32_t index;       /**< Glyph descriptor index*/
         const void * src;     /**< Pointer to the source data used by image fonts*/
     } gid;                    /**< The index of the glyph in the font file. Used by the font cache*/
     lv_cache_entry_t * entry; /**< The cache entry of the glyph draw data. Used by the font cache*/

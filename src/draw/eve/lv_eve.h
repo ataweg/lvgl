@@ -63,6 +63,17 @@ typedef struct {
     uint16_t scy;
 } lv_eve_drawing_context_t;
 
+/* drawing context that is not saved and restored
+ * by SAVE_CONTEXT and RESTORE_CONTEXT
+ */
+typedef struct {
+    uint32_t bitmap_source;
+    uint32_t bitmap_size;
+    uint32_t bitmap_size_h;
+    uint32_t bitmap_layout;
+    uint32_t bitmap_layout_h;
+} lv_eve_drawing_state_t;
+
 /**********************
  *  GLOBAL PROTOTYPES
  **********************/
@@ -79,12 +90,39 @@ void lv_eve_vertex_2f(int16_t x, int16_t y);
 void lv_eve_color_mask(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void lv_eve_stencil_func(uint8_t func, uint8_t ref, uint8_t mask);
 void lv_eve_stencil_op(uint8_t sfail, uint8_t spass);
-void lv_eve_blend_func(uint8_t sfail, uint8_t spass);
+void lv_eve_blend_func(uint8_t src, uint8_t dst);
 
 void lv_eve_draw_circle_simple(int16_t coord_x1, int16_t coord_y1, uint16_t radius_t);
 void lv_eve_draw_rect_simple(int16_t coord_x1, int16_t coord_y1, int16_t coord_x2, int16_t coord_y2,
                              uint16_t radius);
 void lv_eve_mask_round(int16_t coord_x1, int16_t coord_y1, int16_t coord_x2, int16_t coord_y2, int16_t radius);
+
+/**
+ * Set the bitmap source to `addr`. SPI transmission will occur unless it is already set to this value.
+ * The bitmap source is not part of the saved and restored context.
+ * @param addr    the remote EVE memory address to set as the bitmap source
+ */
+void lv_eve_bitmap_source(uint32_t addr);
+
+/**
+ * Set the bitmap size and sampling parameters. SPI transmission will occur unless the currently set parameters are already these.
+ * The bitmap size is not part of the saved and restored context.
+ * @param filter   the sampling method. Either EVE_NEAREST or EVE_BILINEAR
+ * @param wrapx    the out of bounds sampling behavior in the X direction. Either EVE_BORDER or EVE_REPEAT
+ * @param wrapy    the out of bounds sampling behavior in the Y direction. Either EVE_BORDER or EVE_REPEAT
+ * @param width    the width of the bitmap in pixels
+ * @param height   the height of the bitmap in pixels
+ */
+void lv_eve_bitmap_size(uint8_t filter, uint8_t wrapx, uint8_t wrapy, uint16_t width, uint16_t height);
+
+/**
+ * Set the bitmap format/layout parameters. SPI transmission will occur unless the currently set parameters are already these.
+ * The bitmap layout is not part of the saved and restored context.
+ * @param format      an eve color format value like EVE_RGB565
+ * @param linestride  the stride of the bitmap rows in bytes
+ * @param height      the number of rows in the bitmap
+ */
+void lv_eve_bitmap_layout(uint8_t format, uint16_t linestride, uint16_t height);
 
 /**********************
  *  EXTERN VARIABLES

@@ -56,7 +56,8 @@ details are available at :ref:`adding_lvgl_to_your_project`.
 Example
 ~~~~~~~
 
-This is a brief example showing how simple it is to add LVGL to a new project.
+This is just a brief example of how to add LVGL to a new project. For more details
+check out :ref:`Integration Overview <adding_lvgl_to_your_project>`.
 
 .. code-block:: c
 
@@ -118,7 +119,7 @@ Displays
 *Display* refers to the actual hardware. In order to connect LVGL to the hardware an :cpp:expr:`lv_display_t`
 object needs to be created and initialized.
 
-LVGL has built-in support for many :ref:`built-in drivers <drivers>`, but it's easy to initialize a
+LVGL has built-in support for many built-in drivers (see :ref:`integration_index`), but it's easy to initialize a
 display from scratch as well (as shown above).
 
 LVGL also handles multiple displays at once.
@@ -314,7 +315,7 @@ After that, properties can be added to configure the style. For example:
     lv_style_set_bg_color(&style1, lv_color_hex(0xa03080));
     lv_style_set_border_width(&style1, 2);
 
-See :ref:`style_properties_overview` for more details.
+See :ref:`styles_overview` for more details.
 
 See :ref:`style_properties` to see the full list.
 
