@@ -68,12 +68,15 @@ typedef struct {
     long int screensize;
     int fbfd;
     bool force_refresh;
+    uint8_t * draw_buf_1;
+    uint8_t * draw_buf_2;
 } lv_linux_fb_t;
 
 /**********************
  *  STATIC PROTOTYPES
  **********************/
 
+static void del_event_cb(lv_event_t * e);
 static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * color_p);
 static uint32_t tick_get_cb(void);
 
@@ -113,15 +116,18 @@ lv_display_t * lv_linux_fbdev_create(void)
     dsc->fbfd = -1;
     lv_display_set_driver_data(disp, dsc);
     lv_display_set_flush_cb(disp, flush_cb);
+    lv_display_add_event_cb(disp, del_event_cb, LV_EVENT_DELETE, NULL);
 
     return disp;
 }
 
-void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
+lv_result_t lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 {
     char * devname = lv_strdup(file);
     LV_ASSERT_MALLOC(devname);
-    if(devname == NULL) return;
+    if(devname == NULL) {
+        return LV_RESULT_INVALID;
+    }
 
     lv_linux_fb_t * dsc = lv_display_get_driver_data(disp);
     dsc->devname = devname;
@@ -132,7 +138,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->fbfd = open(dsc->devname, O_RDWR);
     if(dsc->fbfd == -1) {
         perror("Error: cannot open framebuffer device");
-        return;
+        return LV_RESULT_INVALID;
     }
     LV_LOG_INFO("The framebuffer device was opened successfully");
 
@@ -149,13 +155,13 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     /*Get fb type*/
     if(ioctl(dsc->fbfd, FBIOGTYPE, &fb) != 0) {
         perror("ioctl(FBIOGTYPE)");
-        return;
+        return LV_RESULT_INVALID;
     }
 
     /*Get screen width*/
     if(ioctl(dsc->fbfd, FBIO_GETLINEWIDTH, &line_length) != 0) {
         perror("ioctl(FBIO_GETLINEWIDTH)");
-        return;
+        return LV_RESULT_INVALID;
     }
 
     dsc->vinfo.xres = (unsigned) fb.fb_width;
@@ -170,13 +176,13 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     /* Get fixed screen information*/
     if(ioctl(dsc->fbfd, FBIOGET_FSCREENINFO, &dsc->finfo) == -1) {
         perror("Error reading fixed information");
-        return;
+        return LV_RESULT_INVALID;
     }
 
     /* Get variable screen information*/
     if(ioctl(dsc->fbfd, FBIOGET_VSCREENINFO, &dsc->vinfo) == -1) {
         perror("Error reading variable information");
-        return;
+        return LV_RESULT_INVALID;
     }
 #endif /* LV_LINUX_FBDEV_BSD */
 
@@ -190,7 +196,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->fbp = (char *)mmap(0, dsc->screensize, PROT_READ | PROT_WRITE, MAP_SHARED, dsc->fbfd, 0);
     if((intptr_t)dsc->fbp == -1) {
         perror("Error: failed to map framebuffer device to memory");
-        return;
+        return LV_RESULT_INVALID;
     }
 #endif
 
@@ -211,7 +217,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
             break;
         default:
             LV_LOG_WARN("Not supported color format (%d bits)", dsc->vinfo.bits_per_pixel);
-            return;
+            return LV_RESULT_INVALID;
     }
 
     int32_t hor_res = dsc->vinfo.xres;
@@ -227,11 +233,14 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
     uint8_t * draw_buf = NULL;
     uint8_t * draw_buf_2 = NULL;
-    draw_buf = malloc(draw_buf_size);
+    draw_buf = lv_malloc(draw_buf_size);
 
     if(LV_LINUX_FBDEV_BUFFER_COUNT == 2) {
-        draw_buf_2 = malloc(draw_buf_size);
+        draw_buf_2 = lv_malloc(draw_buf_size);
     }
+
+    dsc->draw_buf_1 = draw_buf;
+    dsc->draw_buf_2 = draw_buf_2;
 
     lv_display_set_resolution(disp, hor_res, ver_res);
     lv_display_set_buffers(disp, draw_buf, draw_buf_2, draw_buf_size, LV_LINUX_FBDEV_RENDER_MODE);
@@ -242,7 +251,8 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
     LV_LOG_INFO("Resolution is set to %" LV_PRId32 "x%" LV_PRId32 " at %" LV_PRId32 "dpi",
                 hor_res, ver_res, lv_display_get_dpi(disp));
-    /* TODO: map delete event callback to deallocate buffers */
+
+    return LV_RESULT_OK;
 }
 
 void lv_linux_fbdev_set_force_refresh(lv_display_t * disp, bool enabled)
@@ -264,6 +274,34 @@ static void write_to_fb(lv_linux_fb_t * dsc, uint32_t fb_pos, const void * data,
     if(pwrite(dsc->fbfd, data, sz, fb_pos) < 0)
         LV_LOG_ERROR("write failed: %d", errno);
 #endif
+}
+
+static void del_event_cb(lv_event_t * e)
+{
+    if(LV_EVENT_DELETE != lv_event_get_code(e))
+        return;
+
+    lv_display_t * disp = lv_event_get_target(e);
+    lv_linux_fb_t * dsc = lv_display_get_driver_data(disp);
+    if(!dsc) return;
+
+#if LV_LINUX_FBDEV_MMAP
+    if(MAP_FAILED != dsc->fbp) {
+        munmap(dsc->fbp, dsc->screensize);
+        dsc->fbp = MAP_FAILED;
+    }
+#endif
+    if(dsc->fbfd >= 0) {
+        close(dsc->fbfd);
+        dsc->fbfd = -1;
+    }
+    if(dsc->rotated_buf) lv_free(dsc->rotated_buf);
+    if(dsc->draw_buf_1) lv_free(dsc->draw_buf_1);
+    if(dsc->draw_buf_2) lv_free(dsc->draw_buf_2);
+    if(dsc->devname) lv_free((void *)dsc->devname);
+
+    lv_free(dsc);
+    lv_display_set_driver_data(disp, NULL);
 }
 
 static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * color_p)

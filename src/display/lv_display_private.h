@@ -19,7 +19,11 @@ extern "C" {
 #include "lv_display.h"
 
 #if LV_USE_SYSMON
-#include "../others/sysmon/lv_sysmon_private.h"
+#include "../debugging/sysmon/lv_sysmon_private.h"
+#endif
+
+#if LV_USE_EXT_DATA
+#include "../lvgl_private.h"
 #endif
 
 /*********************
@@ -34,7 +38,9 @@ extern "C" {
  **********************/
 
 struct _lv_display_t {
-
+#if LV_USE_EXT_DATA
+    lv_ext_data_t ext_data;
+#endif
     /*---------------------
      * Resolution
      *--------------------*/

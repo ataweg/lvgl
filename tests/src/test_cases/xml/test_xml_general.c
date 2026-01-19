@@ -214,7 +214,7 @@ void test_xml_component_styles(void)
         "    <style name=\"rel_style\" bg_color=\"0xff0000\"/>"
         "    <style name=\"pr_style\" bg_color=\"0x800000\"/>"
         "  </styles>"
-        "  <view extends=\"lv_button\" style_text_color=\"0x0000ff\" style_text_color:checked=\"0xa0a0ff\">"
+        "  <view extends=\"lv_button\" style_text_color=\"0x0000ff\" style_text_color-checked=\"0xa0a0ff\">"
         "    <style name=\"rel_style\"/>"
         "    <style name=\"pr_style\" selector=\"checked\"/>"
         "    <lv_label/>"
@@ -249,7 +249,7 @@ void test_xml_error_resilience_syntax_ok(void)
         "    <style bg_color=\"0x800000\"/>"
         "  </styles>"
         ""
-        "  <view extends=\"not_a_widget\" style_text_color=\"0x0000ff\" style_text_color:checked=\"0x8080ff\">"
+        "  <view extends=\"not_a_widget\" style_text_color=\"0x0000ff\" style_text_color-checked=\"0x8080ff\">"
         "    <unknown/>"
         "    <lv_label not_an_attr=\"40\"/>"
         "  </view>"
@@ -363,6 +363,21 @@ void test_xml_complex(void)
     lv_obj_set_width(slider, 100);
 
     TEST_ASSERT_EQUAL_SCREENSHOT("xml/complex_1.png");
+}
+
+void test_xml_label_pound_sign_gets_rendered_properly(void)
+{
+    const char * my_screen =
+        "<screen>"
+        "<view>"
+        "<lv_label align=\"center\" text=\"#\"/>"
+        "</view>"
+        "</screen>";
+    lv_xml_register_component_from_data("screen", my_screen);
+    lv_obj_t * scr = lv_xml_create_screen("screen");
+    lv_screen_load(scr);
+    lv_obj_t * label = lv_obj_get_child(scr, 0);
+    TEST_ASSERT(lv_streq("#", lv_label_get_text(label)));
 }
 
 #endif

@@ -16,6 +16,10 @@ extern "C" {
 
 #include "lv_obj.h"
 
+#if LV_USE_EXT_DATA
+#include "../lvgl_private.h"
+#endif
+
 /*********************
  *      DEFINES
  *********************/
@@ -53,6 +57,9 @@ struct _lv_obj_spec_attr_t {
 };
 
 struct _lv_obj_t {
+#if LV_USE_EXT_DATA
+    lv_ext_data_t ext_data;
+#endif
     const lv_obj_class_t * class_p;
     lv_obj_t * parent;
     lv_obj_spec_attr_t * spec_attr;
@@ -75,7 +82,13 @@ struct _lv_obj_t {
     uint16_t style_cnt  : 6;
     uint16_t h_layout   : 1;
     uint16_t w_layout   : 1;
+    uint16_t h_ignore_size : 1; /* ignore this obj when calculating content height of parent */
+    uint16_t w_ignore_size : 1; /* ignore this obj when calculating content width of parent */
     uint16_t is_deleting : 1;
+
+    /** The widget is rendered at least once already.
+     * It's used to skip initial animations and transitions. */
+    uint16_t rendered : 1;
 };
 
 /**********************

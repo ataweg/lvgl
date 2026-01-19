@@ -11,7 +11,6 @@
 
 #if LV_USE_DRAW_VG_LITE
 
-#include "../lv_draw_private.h"
 #include "lv_draw_vg_lite_type.h"
 #include "lv_vg_lite_path.h"
 #include "lv_vg_lite_utils.h"
@@ -322,6 +321,15 @@ static void draw_event_cb(lv_event_t * e)
                 LV_LOG_INFO("dropt all cache");
 #endif
             }
+            break;
+        case LV_EVENT_FOCUSED:
+            lv_vg_lite_set_dump_param_enable(true);
+            break;
+        case LV_EVENT_DEFOCUSED:
+            lv_vg_lite_set_dump_param_enable(false);
+            break;
+        case LV_EVENT_HIT_TEST:
+            lv_vg_lite_dump_info();
             break;
         default:
             break;
